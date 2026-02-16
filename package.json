@@ -1,0 +1,31 @@
+{
+    "name": "noteless",
+    "version": "1.0.0",
+    "description": "A note-taking application with table-based notes",
+    "main": "electron/main.js",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "electron:dev": "node start-dev.js",
+        "electron:build": "vite build && electron-builder"
+    },
+    "keywords": [
+        "electron",
+        "vite",
+        "notes",
+        "tables"
+    ],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "electron": "^28.1.0",
+        "electron-builder": "^24.9.1",
+        "vite": "^5.0.11",
+        "wait-on": "^7.2.0"
+    },
+    "dependencies": {
+        "nedb": "^1.8.0"
+    }
+}
