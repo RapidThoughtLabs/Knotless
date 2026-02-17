@@ -1063,6 +1063,20 @@ body {
   display: block;
 }
 
+/* Flip submenu to left side when not enough space on right */
+.highlight-submenu.flip-left {
+  left: auto;
+  right: 100%;
+  margin-left: 0;
+  margin-right: 4px;
+}
+
+/* Flip submenu to top when not enough space below */
+.highlight-submenu.flip-top {
+  top: auto;
+  bottom: 0;
+}
+
 .highlight-color-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

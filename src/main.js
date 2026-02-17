@@ -235,6 +235,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show/hide highlight submenu on hover
     highlightMenuItem.addEventListener('mouseenter', () => {
         highlightSubmenu.classList.add('visible');
+        
+        // Check available space and position submenu accordingly
+        setTimeout(() => {
+            const submenuRect = highlightSubmenu.getBoundingClientRect();
+            const menuRect = cellContextMenu.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const headerHeight = 84; // var(--header-total-height) = 40px + 44px
+            
+            // Horizontal positioning: Check if submenu would go off-screen to the right
+            const spaceOnRight = viewportWidth - menuRect.right;
+            const spaceOnLeft = menuRect.left;
+            const submenuWidth = submenuRect.width;
+            const minHorizontalSpaceNeeded = submenuWidth + 10; // Submenu width + margin
+            
+            // Vertical positioning: Check space above and below the menu item
+            const menuItemRect = highlightMenuItem.getBoundingClientRect();
+            const spaceBelow = viewportHeight - menuItemRect.bottom;
+            const spaceAbove = menuItemRect.top - headerHeight;
+            const submenuHeight = submenuRect.height;
+            const minVerticalSpaceNeeded = submenuHeight + 10; // Submenu height + margin
+            
+            // Horizontal flip: If not enough space on right, flip to left side
+            if (spaceOnRight < minHorizontalSpaceNeeded && spaceOnLeft >= minHorizontalSpaceNeeded) {
+                highlightSubmenu.classList.add('flip-left');
+            } else {
+                highlightSubmenu.classList.remove('flip-left');
+            }
+            
+            // Vertical flip: If not enough space below, flip above
+            if (spaceBelow < minVerticalSpaceNeeded && spaceAbove >= minVerticalSpaceNeeded) {
+                highlightSubmenu.classList.add('flip-top');
+            } else {
+                highlightSubmenu.classList.remove('flip-top');
+            }
+        }, 0);
     });
 
     highlightMenuItem.addEventListener('mouseleave', (e) => {
@@ -678,16 +714,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     contextMenuTargetCell = cell;
 
-                    // Position menu at cursor
-                    cellContextMenu.style.left = `${e.clientX}px`;
-                    cellContextMenu.style.top = `${e.clientY}px`;
-                    cellContextMenu.classList.add('visible');
-
-                    // Hide submenu
+                    // Hide submenu first
                     const highlightSubmenu = cellContextMenu.querySelector('.highlight-submenu');
                     if (highlightSubmenu) {
                         highlightSubmenu.classList.remove('visible');
                     }
+
+                    // Show menu first to measure it
+                    cellContextMenu.classList.add('visible');
+                    
+                    // Use setTimeout to ensure menu is rendered before measuring
+                    setTimeout(() => {
+                        const menuRect = cellContextMenu.getBoundingClientRect();
+                        const viewportHeight = window.innerHeight;
+                        const viewportWidth = window.innerWidth;
+                        const headerHeight = 84; // var(--header-total-height) = 40px + 44px
+                        
+                        let menuX = e.clientX;
+                        let menuY = e.clientY;
+                        
+                        // Check vertical positioning
+                        const spaceBelow = viewportHeight - e.clientY;
+                        const spaceAbove = e.clientY - headerHeight;
+                        const menuHeight = menuRect.height;
+                        const minSpaceNeeded = menuHeight + 10; // Menu height + margin
+                        
+                        // If not enough space below, position above cursor
+                        if (spaceBelow < minSpaceNeeded && spaceAbove >= minSpaceNeeded) {
+                            menuY = e.clientY - menuHeight - 5; // Position above with small gap
+                        }
+                        // If not enough space above either, position at bottom of viewport
+                        else if (spaceBelow < minSpaceNeeded && spaceAbove < minSpaceNeeded) {
+                            menuY = viewportHeight - menuHeight - 10; // 10px margin from bottom
+                        }
+                        
+                        // Check horizontal positioning (prevent going off-screen)
+                        if (menuX + menuRect.width > viewportWidth) {
+                            menuX = viewportWidth - menuRect.width - 10; // 10px margin from right
+                        }
+                        if (menuX < 10) {
+                            menuX = 10; // 10px margin from left
+                        }
+                        
+                        // Apply calculated position
+                        cellContextMenu.style.left = `${menuX}px`;
+                        cellContextMenu.style.top = `${menuY}px`;
+                    }, 0);
                 });
 
                 // Auto-save on blur (text cells only)

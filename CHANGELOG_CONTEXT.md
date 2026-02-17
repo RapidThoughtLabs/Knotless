@@ -32,7 +32,9 @@
   - Improved Windows controls visibility logic by adding class before setting inline styles
   - Added fallback for Linux/other platforms to show Windows-style controls
   - Fixed options menu positioning: Now checks available space above button, not just header overlap. Menu flips below footer if insufficient space above.
-- **Impact**: Images will now display correctly on Windows. All file:// URLs are properly formatted for cross-platform compatibility. Windows controls are now properly detected and displayed with better error handling and debugging support. Options menu now intelligently positions itself based on available space.
+  - Fixed cell context menu positioning: Now intelligently positions menu based on available viewport space. Checks space below cursor first, flips above if needed, and prevents horizontal overflow. Menu adjusts position to stay within viewport bounds.
+  - Fixed highlight submenu positioning: Now checks available space both horizontally and vertically when showing. Submenu flips to the left side if insufficient space on right, and flips above the menu item if insufficient space below. Added `flip-left` and `flip-top` CSS classes for proper positioning. Submenu intelligently adapts to all four directions based on viewport constraints.
+- **Impact**: Images will now display correctly on Windows. All file:// URLs are properly formatted for cross-platform compatibility. Windows controls are now properly detected and displayed with better error handling and debugging support. Options menu, cell context menu, and highlight submenu now intelligently position themselves based on available space in all directions, preventing menus from being cut off or going off-screen regardless of where they appear in the viewport.
 
 ### **File**: src/style.css
 - **Reason**: Windows window controls needed better styling, drag regions were interfering with controls, and controls were not visible due to CSS specificity and grid positioning issues.
@@ -63,3 +65,9 @@
   - Added platform-specific build scripts (`electron:build:win`, `electron:build:mac`)
   - Configured NSIS installer options (allow directory selection, create shortcuts)
 - **Impact**: Windows builds will now create proper installers and portable executables. Users can choose installation directory and shortcuts will be created automatically.
+
+### **File**: .gitignore
+- **Reason**: Cursor IDE configuration folder (.cursor) should not be tracked in version control as it contains user-specific settings and rules.
+- **Changes**: 
+  - Added `.cursor` to the Editor directories and files section
+- **Impact**: The .cursor folder and its contents (including rules and settings) will now be ignored by Git, preventing user-specific IDE configurations from being committed to the repository.
