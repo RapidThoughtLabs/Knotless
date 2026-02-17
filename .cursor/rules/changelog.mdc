@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+Use CHANGELOG_FILES.md documentation file to track all file modifications, creations, and deletions made during development sessions.
+
+## Format
+- **CREATED**: New files added to the project
+- **EDITED**: Existing files that were modified
+- **DELETED**: Files that were removed from the project
+
+Use CHANGELOG_CONTEXT.md documentation file to provide detailed context about why changes were made, what was modified, and the reasoning behind each modification.
+
+## Format
+- **File**: Path to the modified/created file
+- **Reason**: Why the change was necessary
+- **Changes**: What specific modifications were made
+- **Impact**: How this affects the overall system

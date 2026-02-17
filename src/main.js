@@ -3,7 +3,7 @@ let currentFilter = 'recents';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', async () => {
-    const { isMac, isWindows, windowControls, onWindowMaximized, database, images } = window.electron;
+    const { isMac, isWindows, windowControls, onWindowMaximized, database, images, pathUtils } = window.electron;
 
     // Get toast elements
     const toastBar = document.getElementById('toast-bar');
@@ -31,12 +31,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalAddBtn = document.getElementById('modal-add-btn');
 
     // Show/hide controls based on platform
-    if (isMac) {
-        windowsControls.style.display = 'none';
-        rowA.classList.add('mac-row-a');
-    } else if (isWindows) {
-        windowsControls.style.display = 'flex';
-        rowA.classList.add('windows-row-a');
+    if (!rowA || !windowsControls) {
+        console.error('Critical UI elements not found:', { rowA: !!rowA, windowsControls: !!windowsControls });
+    } else {
+        console.log('Platform detection:', { isMac, isWindows, platform: window.electron?.platform });
+        
+        if (isMac) {
+            windowsControls.style.display = 'none';
+            rowA.classList.add('mac-row-a');
+        } else if (isWindows) {
+            // Add Windows class first to trigger CSS
+            rowA.classList.add('windows-row-a');
+            // Then set inline style as backup
+            windowsControls.style.display = 'flex';
+            console.log('Windows controls should be visible now');
+        } else {
+            // Linux or other platforms - show Windows-style controls
+            rowA.classList.add('windows-row-a');
+            windowsControls.style.display = 'flex';
+        }
     }
 
     // Filter dropdown toggle
@@ -298,7 +311,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Copy image
                     const imgPath = getImagePath(cellValue);
                     try {
-                        const response = await fetch(`file://${imgPath}`);
+                        // Convert path to proper file:// URL for cross-platform compatibility
+                        const fileUrl = await pathUtils.toFileUrl(imgPath);
+                        const response = await fetch(fileUrl);
                         const blob = await response.blob();
                         await navigator.clipboard.write([
                             new ClipboardItem({ [blob.type]: blob })
@@ -620,14 +635,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let currentCellValue = cellValue;
 
                 // Render cell content (image or text)
-                const renderCell = (value) => {
+                const renderCell = async (value) => {
                     currentCellValue = value;  // Keep closure updated
                     if (isImageCell(value)) {
                         // Image cell
                         cell.classList.add('image-cell');
                         cell.contentEditable = false;
                         const imgPath = getImagePath(value);
-                        cell.innerHTML = `<img src="file://${imgPath}" alt="cell image">`;
+                        try {
+                            // Convert path to proper file:// URL for cross-platform compatibility
+                            const fileUrl = await pathUtils.toFileUrl(imgPath);
+                            cell.innerHTML = `<img src="${fileUrl}" alt="cell image">`;
+                        } catch (error) {
+                            console.error('Failed to load image:', error);
+                            cell.innerHTML = '<span style="color: #e81123;">Image not found</span>';
+                        }
                     } else {
                         // Text cell
                         cell.classList.remove('image-cell');
@@ -636,8 +658,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 };
 
-                // Initial render
-                renderCell(cellValue);
+                // Initial render (async, but we don't await to avoid blocking)
+                renderCell(cellValue).catch(err => console.error('Render cell error:', err));
 
                 // Apply highlight if exists
                 if (table.highlights) {
@@ -730,7 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                             // Update local reference and re-render
                             table.data[rowIndex][colIndex] = cellData;
-                            renderCell(cellData);
+                            await renderCell(cellData);
 
                             showToast(`Image added to cell`);
                         } catch (error) {
@@ -781,7 +803,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                                 await saveCellData(table._id, rowIndex, colIndex, cellData);
                                 table.data[rowIndex][colIndex] = cellData;
-                                renderCell(cellData);
+                                await renderCell(cellData);
 
                                 showToast(`Image pasted`);
                                 return;
@@ -828,11 +850,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (isImageCell(currentCellValue)) {
                             // Copy image as blob
                             const imgPath = getImagePath(currentCellValue);
-                            const filename = imgPath.split('/').pop() || 'image';
+                            // Extract filename (handle both forward and backslashes)
+                            const filename = imgPath.split(/[/\\]/).pop() || 'image';
 
                             try {
-                                // Fetch the image file
-                                const response = await fetch(`file://${imgPath}`);
+                                // Convert path to proper file:// URL for cross-platform compatibility
+                                const fileUrl = await pathUtils.toFileUrl(imgPath);
+                                const response = await fetch(fileUrl);
                                 const blob = await response.blob();
 
                                 // Write blob to clipboard
@@ -967,10 +991,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Use setTimeout to ensure the menu is rendered before measuring
                 setTimeout(() => {
                     const menuRect = optionsMenu.getBoundingClientRect();
+                    const buttonRect = optionsBtn.getBoundingClientRect();
                     const headerHeight = 84; // var(--header-total-height) = 40px + 44px
+                    const menuHeight = menuRect.height;
+                    const spaceAbove = buttonRect.top - headerHeight;
+                    const minSpaceNeeded = menuHeight + 10; // Menu height + margin
 
-                    // If menu would overlap with navbar (top margin), flip it below
-                    if (menuRect.top < headerHeight + 10) {
+                    // Flip below if:
+                    // 1. Menu would overlap with header, OR
+                    // 2. Not enough space above the button to show full menu
+                    if (menuRect.top < headerHeight + 10 || spaceAbove < minSpaceNeeded) {
                         optionsMenu.classList.add('flip-below');
                     } else {
                         optionsMenu.classList.remove('flip-below');

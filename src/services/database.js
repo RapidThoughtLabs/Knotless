@@ -1,11 +1,27 @@
 import Datastore from 'nedb';
 import path from 'path';
+import fs from 'fs';
 import { app } from 'electron';
 
 class DatabaseService {
     constructor() {
         // Initialize NeDB with persistence to user data directory
         const dbPath = path.join(app.getPath('userData'), 'tables.db');
+        
+        // Ensure directory exists (Windows may need this)
+        const dbDir = path.dirname(dbPath);
+        if (!fs.existsSync(dbDir)) {
+            try {
+                fs.mkdirSync(dbDir, { recursive: true });
+            } catch (error) {
+                console.error('Failed to create database directory:', error);
+                if (process.platform === 'win32' && error.code === 'EACCES') {
+                    throw new Error('Permission denied. Cannot create database directory. Please check file permissions.');
+                }
+                throw error;
+            }
+        }
+        
         this.db = new Datastore({
             filename: dbPath,
             autoload: true,

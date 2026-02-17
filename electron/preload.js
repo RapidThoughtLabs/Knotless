@@ -33,5 +33,10 @@ contextBridge.exposeInMainWorld('electron', {
         save: (buffer) => ipcRenderer.invoke('image:save', buffer),
         delete: (filePath) => ipcRenderer.invoke('image:delete', filePath),
     },
+
+    // Path utility methods for cross-platform compatibility
+    pathUtils: {
+        toFileUrl: (filePath) => ipcRenderer.invoke('path-to-file-url', filePath),
+    },
 });
 

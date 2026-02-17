@@ -68,6 +68,18 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Windows-specific: Adjust grid to accommodate custom controls */
+.row-a.windows-row-a {
+  grid-template-columns: 0 1fr 138px; /* 138px = 46px * 3 buttons */
+}
+
+/* Ensure Windows controls are visible and positioned correctly */
+.row-a.windows-row-a #windows-controls {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 /* Draggable region for Row A */
 .row-a-drag-region {
   position: absolute;
@@ -77,6 +89,11 @@ body {
   height: 100%;
   -webkit-app-region: drag;
   z-index: 0;
+}
+
+/* On Windows, exclude the right side where controls are */
+.row-a.windows-row-a .row-a-drag-region {
+  right: 138px; /* 46px * 3 buttons */
 }
 
 /* macOS Safe Area - space for traffic lights */
@@ -126,10 +143,16 @@ body {
   justify-self: end;
   z-index: 1001;
   align-self: stretch;
+  gap: 0;
+  grid-column: 3; /* Force into third grid column */
+  grid-row: 1; /* Ensure it's in the first row */
 }
 
-.row-a.windows-row-a .windows-controls {
-  display: flex;
+.row-a.windows-row-a .windows-controls,
+.row-a.windows-row-a #windows-controls {
+  display: flex !important;
+  grid-column: 3 !important; /* Ensure it's in the right column */
+  grid-row: 1 !important;
 }
 
 .control-btn {
@@ -144,6 +167,7 @@ body {
   justify-content: center;
   transition: background-color 0.15s ease, color 0.15s ease;
   -webkit-app-region: no-drag;
+  position: relative;
 }
 
 .control-btn:hover {
@@ -151,13 +175,31 @@ body {
   color: var(--text-primary);
 }
 
+.control-btn:active {
+  background: var(--active-bg);
+}
+
 .control-btn.close-btn:hover {
   background: #e81123;
   color: white;
 }
 
+.control-btn.close-btn:active {
+  background: #c50e1f;
+}
+
+.control-btn.maximize-btn:hover {
+  background: var(--hover-bg);
+}
+
+.control-btn.minimize-btn:hover {
+  background: var(--hover-bg);
+}
+
 .control-btn svg {
   pointer-events: none;
+  width: 12px;
+  height: 12px;
 }
 
 /* ============================================

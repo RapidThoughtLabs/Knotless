@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -36,9 +36,16 @@ function createWindow() {
     // macOS: Use hidden title bar style to show traffic lights
     windowConfig.titleBarStyle = 'hidden';
     windowConfig.trafficLightPosition = { x: 16, y: 14 };
-  } else {
-    // Windows/Linux: Completely frameless
+    windowConfig.backgroundColor = '#1a1a1a'; // Match app background for consistency
+  } else if (isWindows) {
+    // Windows: Frameless with custom controls
     windowConfig.frame = false;
+    // Add Windows-specific optimizations
+    windowConfig.backgroundColor = '#1a1a1a'; // Match app background
+  } else {
+    // Linux: Completely frameless
+    windowConfig.frame = false;
+    windowConfig.backgroundColor = '#1a1a1a'; // Match app background
   }
 
   mainWindow = new BrowserWindow(windowConfig);
@@ -108,6 +115,12 @@ ipcMain.handle('db:delete', async (_, id) => {
 ipcMain.handle('image:save', async (_, buffer) => {
   try {
     const imagesDir = path.join(app.getPath('userData'), 'images');
+    
+    // Ensure directory exists
+    if (!fs.existsSync(imagesDir)) {
+      fs.mkdirSync(imagesDir, { recursive: true });
+    }
+    
     const timestamp = Date.now();
     const randomId = crypto.randomBytes(2).toString('hex');
     const filename = `img_${timestamp}_${randomId}.png`;
@@ -116,23 +129,52 @@ ipcMain.handle('image:save', async (_, buffer) => {
     // Write buffer to file
     fs.writeFileSync(filePath, Buffer.from(buffer));
 
-    return filePath;
+    // Return normalized path (forward slashes for cross-platform compatibility)
+    // Store as absolute path but normalize separators
+    return path.normalize(filePath).replace(/\\/g, '/');
   } catch (error) {
     console.error('Failed to save image:', error);
+    // Provide more detailed error for Windows
+    if (isWindows && error.code === 'EACCES') {
+      throw new Error('Permission denied. Please check file permissions.');
+    } else if (isWindows && error.code === 'ENOENT') {
+      throw new Error('Directory not found. Please check the application data directory.');
+    }
     throw error;
   }
 });
 
 ipcMain.handle('image:delete', async (_, filePath) => {
   try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Normalize path (handle both forward and backslashes)
+    const normalizedPath = filePath.replace(/\//g, path.sep);
+    
+    if (fs.existsSync(normalizedPath)) {
+      fs.unlinkSync(normalizedPath);
       return true;
     }
     return false;
   } catch (error) {
     console.error('Failed to delete image:', error);
+    // Windows-specific error handling
+    if (isWindows && error.code === 'EACCES') {
+      console.error('Permission denied when deleting image file');
+    }
     return false;
+  }
+});
+
+// IPC handler to convert file path to file:// URL (for cross-platform compatibility)
+ipcMain.handle('path-to-file-url', async (_, filePath) => {
+  try {
+    // Normalize path separators first
+    const normalizedPath = path.normalize(filePath);
+    // Convert to file:// URL
+    const fileUrl = pathToFileURL(normalizedPath).href;
+    return fileUrl;
+  } catch (error) {
+    console.error('Failed to convert path to file URL:', error);
+    throw error;
   }
 });
 
