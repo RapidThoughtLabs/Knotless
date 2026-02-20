@@ -87,6 +87,16 @@
     <button id="add-btn" class="add-btn">
       <span>+ add</span>
     </button>
+
+    <!-- Settings Button -->
+    <button id="settings-btn" class="settings-btn" aria-label="Settings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </button>
   </div>
 
   <!-- Main Content Area -->
@@ -116,6 +126,265 @@
       <div class="modal-actions">
         <button id="confirm-cancel-btn" class="modal-btn modal-btn-cancel">Cancel</button>
         <button id="confirm-ok-btn" class="modal-btn modal-btn-add">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Popup -->
+  <div id="settings-popup" class="settings-popup hidden">
+    <div class="settings-backdrop"></div>
+    <div class="settings-panel">
+      <!-- Sidebar -->
+      <div class="settings-sidebar">
+        <div class="settings-sidebar-header">settings</div>
+        <button class="settings-nav-item active" data-section="general">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <span>General</span>
+        </button>
+        <button class="settings-nav-item" data-section="theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          <span>Theme</span>
+        </button>
+        <button class="settings-nav-item" data-section="security">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>Security</span>
+        </button>
+      </div>
+      <!-- Content Pane -->
+      <div class="settings-content">
+        <!-- General Section -->
+        <div class="settings-section" id="settings-general">
+          <h3 class="settings-section-title">General</h3>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Launch on startup</span>
+                <span class="settings-item-desc">Open NoteLess when you log in</span>
+              </div>
+              <div class="settings-toggle" id="toggle-launch-startup">
+                <div class="settings-toggle-knob"></div>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Default table columns</span>
+                <span class="settings-item-desc">Number of columns for new tables</span>
+              </div>
+              <input type="number" class="settings-number-input" value="3" min="1" max="10" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Auto-save interval</span>
+                <span class="settings-item-desc">How often to auto-save (seconds)</span>
+              </div>
+              <input type="number" class="settings-number-input" value="30" min="5" max="300" />
+            </div>
+          </div>
+        </div>
+        <!-- Theme Section -->
+        <div class="settings-section hidden" id="settings-theme">
+          <h3 class="settings-section-title">Theme</h3>
+
+          <!-- Background -->
+          <div class="settings-sub-heading">Background</div>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Mode</span>
+                <span class="settings-item-desc">Solid, gradient, or wallpaper</span>
+              </div>
+              <select class="settings-select" id="theme-bg-type">
+                <option value="solid">Solid</option>
+                <option value="gradient">Gradient</option>
+                <option value="wallpaper">Wallpaper</option>
+              </select>
+            </div>
+            <!-- Solid color -->
+            <div class="settings-item" id="theme-bg-solid-row">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Color</span>
+              </div>
+              <input type="color" class="settings-color-input" id="theme-bg-color" value="#3a3a3a" />
+            </div>
+            <!-- Gradient controls -->
+            <div class="settings-item hidden" id="theme-bg-grad-from-row">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Gradient from</span>
+              </div>
+              <input type="color" class="settings-color-input" id="theme-bg-grad-from" value="#2d2d2d" />
+            </div>
+            <div class="settings-item hidden" id="theme-bg-grad-to-row">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Gradient to</span>
+              </div>
+              <input type="color" class="settings-color-input" id="theme-bg-grad-to" value="#1a1a1a" />
+            </div>
+            <div class="settings-item hidden" id="theme-bg-grad-angle-row">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Angle</span>
+              </div>
+              <input type="number" class="settings-number-input" id="theme-bg-grad-angle" value="135" min="0"
+                max="360" />
+            </div>
+            <!-- Wallpaper URL -->
+            <div class="settings-item hidden" id="theme-bg-wallpaper-url-row">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Wallpaper URL</span>
+              </div>
+              <input type="text" class="settings-text-input" id="theme-bg-wallpaper-url" placeholder="https://..." />
+            </div>
+            <!-- Wallpaper gallery -->
+            <div class="settings-wallpaper-gallery hidden" id="theme-bg-wallpaper-gallery">
+              <div class="settings-item-label" style="margin-bottom:8px;">Presets</div>
+              <div class="wallpaper-grid" id="wallpaper-grid"></div>
+            </div>
+            <!-- Wallpaper opacity -->
+            <div class="settings-item hidden" id="theme-bg-opacity-row">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Opacity</span>
+              </div>
+              <input type="range" class="settings-range-input" id="theme-bg-opacity" min="0" max="1" step="0.05"
+                value="1" />
+            </div>
+          </div>
+
+          <!-- Chrome Colors -->
+          <div class="settings-sub-heading">Chrome</div>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Header</span></div>
+              <input type="color" class="settings-color-input" id="theme-chrome-header" value="#1a1a1a" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Filter bar</span></div>
+              <input type="color" class="settings-color-input" id="theme-chrome-filterbar" value="#2d2d2d" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Borders</span></div>
+              <input type="color" class="settings-color-input" id="theme-chrome-border" value="#404040" />
+            </div>
+          </div>
+
+          <!-- Text Colors -->
+          <div class="settings-sub-heading">Text</div>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Primary</span></div>
+              <input type="color" class="settings-color-input" id="theme-text-primary" value="#e0e0e0" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Secondary</span></div>
+              <input type="color" class="settings-color-input" id="theme-text-secondary" value="#a0a0a0" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Muted</span></div>
+              <input type="color" class="settings-color-input" id="theme-text-muted" value="#5a5a5a" />
+            </div>
+          </div>
+
+          <!-- Table Styling -->
+          <div class="settings-sub-heading">Tables</div>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Cell background</span></div>
+              <input type="color" class="settings-color-input" id="theme-table-cellbg" value="#f5f5f5" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Cell text</span></div>
+              <input type="color" class="settings-color-input" id="theme-table-celltext" value="#1a1a1a" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Grid lines</span></div>
+              <input type="color" class="settings-color-input" id="theme-table-gridline" value="#000000" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Grid mode</span>
+                <span class="settings-item-desc">Lines or gaps between cells</span>
+              </div>
+              <select class="settings-select" id="theme-table-gridmode">
+                <option value="lines">Lines</option>
+                <option value="gaps">Gaps</option>
+              </select>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Table opacity</span></div>
+              <input type="range" class="settings-range-input" id="theme-table-opacity" min="0.3" max="1" step="0.05"
+                value="1" />
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info"><span class="settings-item-label">Footer background</span></div>
+              <input type="color" class="settings-color-input" id="theme-table-footer" value="#1a1a1a" />
+            </div>
+          </div>
+
+          <!-- Highlight Colors -->
+          <div class="settings-sub-heading">Highlights</div>
+          <div class="settings-group">
+            <div class="settings-highlight-row" id="highlight-colors-row"></div>
+          </div>
+
+          <!-- Reset -->
+          <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="modal-btn modal-btn-cancel" id="theme-reset-btn">Reset to defaults</button>
+          </div>
+        </div>
+        <!-- Security Section -->
+        <div class="settings-section hidden" id="settings-security">
+          <h3 class="settings-section-title">Security</h3>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Lock on sleep</span>
+                <span class="settings-item-desc">Require password after system sleep</span>
+              </div>
+              <div class="settings-toggle" id="toggle-lock-sleep">
+                <div class="settings-toggle-knob"></div>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Auto-lock timeout</span>
+                <span class="settings-item-desc">Minutes of inactivity before lock</span>
+              </div>
+              <select class="settings-select">
+                <option value="never" selected>Never</option>
+                <option value="5">5 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+              </select>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Clear data on exit</span>
+                <span class="settings-item-desc">Wipe all data when app closes</span>
+              </div>
+              <div class="settings-toggle" id="toggle-clear-exit">
+                <div class="settings-toggle-knob"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

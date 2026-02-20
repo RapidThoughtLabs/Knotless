@@ -38,5 +38,12 @@ contextBridge.exposeInMainWorld('electron', {
     pathUtils: {
         toFileUrl: (filePath) => ipcRenderer.invoke('path-to-file-url', filePath),
     },
+
+    // Settings methods
+    settings: {
+        get: () => ipcRenderer.invoke('settings:get'),
+        update: (dotPath, value) => ipcRenderer.invoke('settings:update', dotPath, value),
+        reset: () => ipcRenderer.invoke('settings:reset'),
+    },
 });
 

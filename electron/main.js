@@ -4,12 +4,14 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import DatabaseService from '../src/services/database.js';
+import SettingsService from '../src/services/settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize database service
 let dbService;
+let settingsService;
 
 const isMac = process.platform === 'darwin';
 const isWindows = process.platform === 'win32';
@@ -111,6 +113,19 @@ ipcMain.handle('db:delete', async (_, id) => {
   return await dbService.deleteTable(id);
 });
 
+// Settings IPC handlers
+ipcMain.handle('settings:get', async () => {
+  return settingsService.get();
+});
+
+ipcMain.handle('settings:update', async (_, dotPath, value) => {
+  return settingsService.update(dotPath, value);
+});
+
+ipcMain.handle('settings:reset', async () => {
+  return settingsService.reset();
+});
+
 // Image IPC handlers
 ipcMain.handle('image:save', async (_, buffer) => {
   try {
@@ -182,6 +197,7 @@ ipcMain.handle('path-to-file-url', async (_, filePath) => {
 app.whenReady().then(() => {
   // Initialize database service
   dbService = new DatabaseService();
+  settingsService = new SettingsService();
 
   // Create images directory if it doesn't exist
   const imagesDir = path.join(app.getPath('userData'), 'images');

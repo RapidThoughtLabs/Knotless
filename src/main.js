@@ -1,8 +1,17 @@
+import themeEngine from './services/theme-engine.js';
+
 // Current filter state
 let currentFilter = 'recents';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', async () => {
+    // Init ThemeEngine FIRST — must happen before any UI that reads config
+    try {
+        await themeEngine.init();
+    } catch (e) {
+        console.error('[ThemeEngine] init failed:', e);
+    }
+
     const { isMac, isWindows, windowControls, onWindowMaximized, database, images, pathUtils } = window.electron;
 
     // Get toast elements
@@ -35,7 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Critical UI elements not found:', { rowA: !!rowA, windowsControls: !!windowsControls });
     } else {
         console.log('Platform detection:', { isMac, isWindows, platform: window.electron?.platform });
-        
+
         if (isMac) {
             windowsControls.style.display = 'none';
             rowA.classList.add('mac-row-a');
@@ -171,6 +180,282 @@ document.addEventListener('DOMContentLoaded', async () => {
         confirmModal.classList.remove('hidden');
     }
 
+    /* ============================================
+       SETTINGS PANEL
+       ============================================ */
+
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPopup = document.getElementById('settings-popup');
+    const settingsBackdrop = settingsPopup?.querySelector('.settings-backdrop');
+    const settingsNavItems = document.querySelectorAll('.settings-nav-item');
+    const settingsSections = document.querySelectorAll('.settings-section');
+    const settingsToggles = document.querySelectorAll('.settings-toggle');
+
+    // Toggle settings popup
+    function openSettings() {
+        if (!settingsPopup) return;
+        settingsPopup.classList.remove('hidden');
+        settingsBtn.classList.add('active');
+        if (themeEngine.getConfig()) populateThemeUI();
+    }
+
+    function closeSettings() {
+        settingsPopup.classList.add('hidden');
+        settingsBtn.classList.remove('active');
+    }
+
+    settingsBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (settingsPopup.classList.contains('hidden')) {
+            openSettings();
+        } else {
+            closeSettings();
+        }
+    });
+
+    // Close on backdrop click
+    settingsBackdrop?.addEventListener('click', () => {
+        closeSettings();
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPopup.classList.contains('hidden')) {
+            closeSettings();
+        }
+    });
+
+    // Sidebar navigation
+    settingsNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const section = item.dataset.section;
+            settingsNavItems.forEach(nav => nav.classList.remove('active'));
+            item.classList.add('active');
+            settingsSections.forEach(sec => {
+                if (sec.id === `settings-${section}`) {
+                    sec.classList.remove('hidden');
+                } else {
+                    sec.classList.add('hidden');
+                }
+            });
+        });
+    });
+
+    // Toggle switches
+    settingsToggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            toggle.classList.toggle('active');
+        });
+    });
+
+    /* ---- ThemeEngine init already done above ---- */
+
+    /* ---- Preset wallpapers ---- */
+    const PRESET_WALLPAPERS = [
+        'https://w.wallhaven.cc/full/ex/wallhaven-ex9gwo.png',
+        'https://w.wallhaven.cc/full/gp/wallhaven-gpkd97.jpg',
+        'https://w.wallhaven.cc/full/49/wallhaven-49m5j1.jpg',
+        'https://w.wallhaven.cc/full/p9/wallhaven-p97l5e.png',
+        'https://w.wallhaven.cc/full/72/wallhaven-72rxqo.jpg',
+        'https://w.wallhaven.cc/full/zy/wallhaven-zyxvqy.jpg'
+    ];
+
+    /* ---- Background mode row visibility ---- */
+    const bgTypeSelect = document.getElementById('theme-bg-type');
+    const bgSolidRow = document.getElementById('theme-bg-solid-row');
+    const bgGradFromRow = document.getElementById('theme-bg-grad-from-row');
+    const bgGradToRow = document.getElementById('theme-bg-grad-to-row');
+    const bgGradAngleRow = document.getElementById('theme-bg-grad-angle-row');
+    const bgWallpaperUrlRow = document.getElementById('theme-bg-wallpaper-url-row');
+    const bgWallpaperGallery = document.getElementById('theme-bg-wallpaper-gallery');
+    const bgOpacityRow = document.getElementById('theme-bg-opacity-row');
+
+    function showBgRowsForMode(mode) {
+        // Hide all conditional rows
+        bgSolidRow.classList.add('hidden');
+        bgGradFromRow.classList.add('hidden');
+        bgGradToRow.classList.add('hidden');
+        bgGradAngleRow.classList.add('hidden');
+        bgWallpaperUrlRow.classList.add('hidden');
+        bgWallpaperGallery.classList.add('hidden');
+        bgOpacityRow.classList.add('hidden');
+
+        switch (mode) {
+            case 'solid':
+                bgSolidRow.classList.remove('hidden');
+                break;
+            case 'gradient':
+                bgGradFromRow.classList.remove('hidden');
+                bgGradToRow.classList.remove('hidden');
+                bgGradAngleRow.classList.remove('hidden');
+                break;
+            case 'wallpaper':
+                bgSolidRow.classList.remove('hidden');
+                bgWallpaperUrlRow.classList.remove('hidden');
+                bgWallpaperGallery.classList.remove('hidden');
+                bgOpacityRow.classList.remove('hidden');
+                break;
+        }
+    }
+
+    // Background type change
+    bgTypeSelect?.addEventListener('change', async () => {
+        const mode = bgTypeSelect.value;
+        showBgRowsForMode(mode);
+        await themeEngine.update('theme.background.type', mode);
+    });
+
+    /* ---- Populate Theme UI from config ---- */
+    function populateThemeUI() {
+        const cfg = themeEngine.getConfig();
+        if (!cfg) { console.warn('[ThemeEngine] config not loaded yet'); return; }
+        const t = cfg.theme;
+
+        // Background
+        bgTypeSelect.value = t.background.type;
+        showBgRowsForMode(t.background.type);
+        document.getElementById('theme-bg-color').value = t.background.color;
+        document.getElementById('theme-bg-grad-from').value = t.background.gradient.from;
+        document.getElementById('theme-bg-grad-to').value = t.background.gradient.to;
+        document.getElementById('theme-bg-grad-angle').value = t.background.gradient.angle;
+        document.getElementById('theme-bg-wallpaper-url').value = t.background.wallpaperUrl || '';
+        document.getElementById('theme-bg-opacity').value = t.background.opacity;
+
+        // Chrome
+        document.getElementById('theme-chrome-header').value = t.chrome.headerBg;
+        document.getElementById('theme-chrome-filterbar').value = t.chrome.filterBarBg;
+        document.getElementById('theme-chrome-border').value = t.chrome.borderColor;
+
+        // Text
+        document.getElementById('theme-text-primary').value = t.text.primary;
+        document.getElementById('theme-text-secondary').value = t.text.secondary;
+        document.getElementById('theme-text-muted').value = t.text.muted;
+
+        // Tables
+        document.getElementById('theme-table-cellbg').value = t.tables.cellBg;
+        document.getElementById('theme-table-celltext').value = t.tables.cellText;
+        document.getElementById('theme-table-gridline').value = t.tables.gridLineColor;
+        document.getElementById('theme-table-gridmode').value = t.tables.gridLineMode;
+        document.getElementById('theme-table-opacity').value = t.tables.opacity;
+        document.getElementById('theme-table-footer').value = t.tables.footerBg;
+
+        // Highlights
+        populateHighlightSwatches(t.highlights);
+
+        // Wallpaper gallery
+        populateWallpaperGallery(t.background.wallpaperUrl);
+    }
+
+    /* ---- Wallpaper gallery ---- */
+    function populateWallpaperGallery(activeUrl) {
+        const grid = document.getElementById('wallpaper-grid');
+        grid.innerHTML = '';
+        PRESET_WALLPAPERS.forEach(url => {
+            const thumb = document.createElement('div');
+            thumb.className = 'wallpaper-thumb' + (url === activeUrl ? ' active' : '');
+            thumb.style.backgroundImage = `url(${url})`;
+            thumb.addEventListener('click', async () => {
+                document.getElementById('theme-bg-wallpaper-url').value = url;
+                grid.querySelectorAll('.wallpaper-thumb').forEach(t => t.classList.remove('active'));
+                thumb.classList.add('active');
+                await themeEngine.update('theme.background.wallpaperUrl', url);
+            });
+            grid.appendChild(thumb);
+        });
+    }
+
+    /* ---- Highlight swatches ---- */
+    function populateHighlightSwatches(highlights) {
+        const row = document.getElementById('highlight-colors-row');
+        row.innerHTML = '';
+        highlights.forEach((h, i) => {
+            const swatch = document.createElement('div');
+            swatch.className = 'settings-highlight-swatch';
+            swatch.style.background = h.color;
+            swatch.title = h.name;
+
+            const input = document.createElement('input');
+            input.type = 'color';
+            input.value = h.color;
+            input.addEventListener('input', async (e) => {
+                const newColor = e.target.value;
+                swatch.style.background = newColor;
+                const updated = [...themeEngine.getConfig().theme.highlights];
+                updated[i] = { ...updated[i], color: newColor };
+                await themeEngine.update('theme.highlights', updated);
+                rebuildContextMenuHighlights(updated);
+            });
+
+            swatch.appendChild(input);
+            row.appendChild(swatch);
+        });
+    }
+
+    /* ---- Rebuild context-menu highlight colors ---- */
+    function rebuildContextMenuHighlights(highlights) {
+        const grid = cellContextMenu.querySelector('.highlight-color-grid');
+        if (!grid) return;
+        grid.innerHTML = highlights.map(({ name, color }) =>
+            `<div class="highlight-color-option" data-color="${color}" style="background: ${color};" title="${name}"></div>`
+        ).join('') + '<div class="highlight-color-option none" data-color="none" title="No Highlight"></div>';
+    }
+
+    /* ---- Wire all color/input change handlers ---- */
+    const colorBindings = [
+        ['theme-bg-color', 'theme.background.color'],
+        ['theme-bg-grad-from', 'theme.background.gradient.from'],
+        ['theme-bg-grad-to', 'theme.background.gradient.to'],
+        ['theme-chrome-header', 'theme.chrome.headerBg'],
+        ['theme-chrome-filterbar', 'theme.chrome.filterBarBg'],
+        ['theme-chrome-border', 'theme.chrome.borderColor'],
+        ['theme-text-primary', 'theme.text.primary'],
+        ['theme-text-secondary', 'theme.text.secondary'],
+        ['theme-text-muted', 'theme.text.muted'],
+        ['theme-table-cellbg', 'theme.tables.cellBg'],
+        ['theme-table-celltext', 'theme.tables.cellText'],
+        ['theme-table-gridline', 'theme.tables.gridLineColor'],
+        ['theme-table-footer', 'theme.tables.footerBg'],
+    ];
+
+    colorBindings.forEach(([id, path]) => {
+        const el = document.getElementById(id);
+        el?.addEventListener('input', async () => {
+            await themeEngine.update(path, el.value);
+        });
+    });
+
+    // Gradient angle
+    document.getElementById('theme-bg-grad-angle')?.addEventListener('change', async function () {
+        await themeEngine.update('theme.background.gradient.angle', parseInt(this.value) || 135);
+    });
+
+    // Wallpaper URL
+    document.getElementById('theme-bg-wallpaper-url')?.addEventListener('change', async function () {
+        await themeEngine.update('theme.background.wallpaperUrl', this.value);
+    });
+
+    // Wallpaper opacity
+    document.getElementById('theme-bg-opacity')?.addEventListener('input', async function () {
+        await themeEngine.update('theme.background.opacity', parseFloat(this.value));
+    });
+
+    // Grid mode
+    document.getElementById('theme-table-gridmode')?.addEventListener('change', async function () {
+        await themeEngine.update('theme.tables.gridLineMode', this.value);
+    });
+
+    // Table opacity
+    document.getElementById('theme-table-opacity')?.addEventListener('input', async function () {
+        await themeEngine.update('theme.tables.opacity', parseFloat(this.value));
+    });
+
+    // Reset to defaults
+    document.getElementById('theme-reset-btn')?.addEventListener('click', async () => {
+        await themeEngine.reset();
+        populateThemeUI();
+        rebuildContextMenuHighlights(themeEngine.getConfig().theme.highlights);
+    });
+
     // Close any open options menus when clicking outside
     document.addEventListener('click', (e) => {
         const openMenus = document.querySelectorAll('.options-menu:not(.hidden)');
@@ -191,13 +476,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cellContextMenu.className = 'cell-context-menu';
     cellContextMenu.id = 'cell-context-menu';
 
-    const highlightColors = [
-        { name: 'Soft Red', color: '#ffd6cc' },
-        { name: 'Soft Orange', color: '#ffe4cc' },
-        { name: 'Soft Yellow', color: '#fff5cc' },
-        { name: 'Soft Green', color: '#d6f5d6' },
-        { name: 'Soft Blue', color: '#ccf0ff' }
-    ];
+    const highlightColors = themeEngine.getConfig().theme.highlights;
 
     cellContextMenu.innerHTML = `
         <button class="cell-context-menu-item" data-action="copy">
@@ -235,7 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show/hide highlight submenu on hover
     highlightMenuItem.addEventListener('mouseenter', () => {
         highlightSubmenu.classList.add('visible');
-        
+
         // Check available space and position submenu accordingly
         setTimeout(() => {
             const submenuRect = highlightSubmenu.getBoundingClientRect();
@@ -243,27 +522,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
             const headerHeight = 84; // var(--header-total-height) = 40px + 44px
-            
+
             // Horizontal positioning: Check if submenu would go off-screen to the right
             const spaceOnRight = viewportWidth - menuRect.right;
             const spaceOnLeft = menuRect.left;
             const submenuWidth = submenuRect.width;
             const minHorizontalSpaceNeeded = submenuWidth + 10; // Submenu width + margin
-            
+
             // Vertical positioning: Check space above and below the menu item
             const menuItemRect = highlightMenuItem.getBoundingClientRect();
             const spaceBelow = viewportHeight - menuItemRect.bottom;
             const spaceAbove = menuItemRect.top - headerHeight;
             const submenuHeight = submenuRect.height;
             const minVerticalSpaceNeeded = submenuHeight + 10; // Submenu height + margin
-            
+
             // Horizontal flip: If not enough space on right, flip to left side
             if (spaceOnRight < minHorizontalSpaceNeeded && spaceOnLeft >= minHorizontalSpaceNeeded) {
                 highlightSubmenu.classList.add('flip-left');
             } else {
                 highlightSubmenu.classList.remove('flip-left');
             }
-            
+
             // Vertical flip: If not enough space below, flip above
             if (spaceBelow < minVerticalSpaceNeeded && spaceAbove >= minVerticalSpaceNeeded) {
                 highlightSubmenu.classList.add('flip-top');
@@ -722,23 +1001,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Show menu first to measure it
                     cellContextMenu.classList.add('visible');
-                    
+
                     // Use setTimeout to ensure menu is rendered before measuring
                     setTimeout(() => {
                         const menuRect = cellContextMenu.getBoundingClientRect();
                         const viewportHeight = window.innerHeight;
                         const viewportWidth = window.innerWidth;
                         const headerHeight = 84; // var(--header-total-height) = 40px + 44px
-                        
+
                         let menuX = e.clientX;
                         let menuY = e.clientY;
-                        
+
                         // Check vertical positioning
                         const spaceBelow = viewportHeight - e.clientY;
                         const spaceAbove = e.clientY - headerHeight;
                         const menuHeight = menuRect.height;
                         const minSpaceNeeded = menuHeight + 10; // Menu height + margin
-                        
+
                         // If not enough space below, position above cursor
                         if (spaceBelow < minSpaceNeeded && spaceAbove >= minSpaceNeeded) {
                             menuY = e.clientY - menuHeight - 5; // Position above with small gap
@@ -747,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         else if (spaceBelow < minSpaceNeeded && spaceAbove < minSpaceNeeded) {
                             menuY = viewportHeight - menuHeight - 10; // 10px margin from bottom
                         }
-                        
+
                         // Check horizontal positioning (prevent going off-screen)
                         if (menuX + menuRect.width > viewportWidth) {
                             menuX = viewportWidth - menuRect.width - 10; // 10px margin from right
@@ -755,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (menuX < 10) {
                             menuX = 10; // 10px margin from left
                         }
-                        
+
                         // Apply calculated position
                         cellContextMenu.style.left = `${menuX}px`;
                         cellContextMenu.style.top = `${menuY}px`;
