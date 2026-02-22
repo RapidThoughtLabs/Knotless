@@ -37,17 +37,17 @@ function createWindow() {
   if (isMac) {
     // macOS: Use hidden title bar style to show traffic lights
     windowConfig.titleBarStyle = 'hidden';
-    windowConfig.trafficLightPosition = { x: 16, y: 14 };
-    windowConfig.backgroundColor = '#1a1a1a'; // Match app background for consistency
+    windowConfig.trafficLightPosition = { x: 16, y: 15 };
+    windowConfig.backgroundColor = '#0a0a0a'; // V2 dark base
   } else if (isWindows) {
     // Windows: Frameless with custom controls
     windowConfig.frame = false;
     // Add Windows-specific optimizations
-    windowConfig.backgroundColor = '#1a1a1a'; // Match app background
+    windowConfig.backgroundColor = '#0a0a0a'; // V2 dark base
   } else {
     // Linux: Completely frameless
     windowConfig.frame = false;
-    windowConfig.backgroundColor = '#1a1a1a'; // Match app background
+    windowConfig.backgroundColor = '#0a0a0a'; // V2 dark base
   }
 
   mainWindow = new BrowserWindow(windowConfig);
@@ -130,12 +130,12 @@ ipcMain.handle('settings:reset', async () => {
 ipcMain.handle('image:save', async (_, buffer) => {
   try {
     const imagesDir = path.join(app.getPath('userData'), 'images');
-    
+
     // Ensure directory exists
     if (!fs.existsSync(imagesDir)) {
       fs.mkdirSync(imagesDir, { recursive: true });
     }
-    
+
     const timestamp = Date.now();
     const randomId = crypto.randomBytes(2).toString('hex');
     const filename = `img_${timestamp}_${randomId}.png`;
@@ -163,7 +163,7 @@ ipcMain.handle('image:delete', async (_, filePath) => {
   try {
     // Normalize path (handle both forward and backslashes)
     const normalizedPath = filePath.replace(/\//g, path.sep);
-    
+
     if (fs.existsSync(normalizedPath)) {
       fs.unlinkSync(normalizedPath);
       return true;

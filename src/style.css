@@ -1,1598 +1,1395 @@
-/* ============================================
-   NoteLess - Retro Minimalist Theme
-   Gray Palette with JetBrains Mono
-   ============================================ */
+/*
+ * Knotless V2 — App Stylesheet
+ * All colours come from /src/rtl-theme/rtl-theme-vars.css
+ * This file only handles layout, sizing, and component shape.
+ */
 
-:root {
-  /* Gray Palette — Chrome */
-  --row-a-bg: #1a1a1a;
-  --row-b-bg: #2d2d2d;
-  --app-bg: #3a3a3a;
-
-  /* Text Colors */
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --text-muted: #5a5a5a;
-
-  /* Accents */
-  --border-color: #404040;
-  --hover-bg: #444444;
-  --active-bg: #505050;
-  --accent-success: #2ea043;
-  --accent-danger: #e81123;
-  --accent-danger-hover: #ff6b6b;
-  --accent-toggle-active: #2ea043;
-
-  /* Tables */
-  --cell-bg: #f5f5f5;
-  --cell-hover-bg: #fafafa;
-  --cell-focus-bg: #ffffff;
-  --cell-text: #1a1a1a;
-  --cell-placeholder: #999999;
-  --grid-line-color: #000000;
-  --table-footer-bg: #1a1a1a;
-  --table-opacity: 1;
-
-  /* Typography */
-  --font-mono: 'JetBrains Mono', 'Courier New', Consolas, monospace;
-  --font-size: 13px;
-
-  /* Layout */
-  --row-a-height: 40px;
-  --row-b-height: 44px;
-  --header-total-height: calc(var(--row-a-height) + var(--row-b-height));
-}
-
-/* ============================================
-   Base Styles
-   ============================================ */
-
-* {
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+}
+
+* {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+html {
+  height: 100%;
 }
 
 body {
-  font-family: var(--font-mono);
-  font-size: var(--font-size);
-  overflow: hidden;
-  user-select: none;
-  background: var(--app-bg);
-  color: var(--text-primary);
-}
-
-/* Wallpaper Background Layer */
-#wallpaper-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  pointer-events: none;
-}
-
-/* Gap mode: transparent grid lines instead of solid */
-.gap-mode .table-grid {
-  background: transparent !important;
-  gap: 2px;
-}
-
-/* ============================================
-   Row A: Header (Logo + Traffic Lights)
-   ============================================ */
-
-.row-a {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--row-a-height);
-  background: var(--row-a-bg);
-  display: grid;
-  grid-template-columns: 80px 1fr 80px;
-  align-items: center;
-  z-index: 1000;
-  border-bottom: 1px solid var(--border-color);
-}
-
-/* Windows-specific: Adjust grid to accommodate custom controls */
-.row-a.windows-row-a {
-  grid-template-columns: 0 1fr 138px; /* 138px = 46px * 3 buttons */
-}
-
-/* Ensure Windows controls are visible and positioned correctly */
-.row-a.windows-row-a #windows-controls {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Draggable region for Row A */
-.row-a-drag-region {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  -webkit-app-region: drag;
-  z-index: 0;
-}
-
-/* On Windows, exclude the right side where controls are */
-.row-a.windows-row-a .row-a-drag-region {
-  right: 138px; /* 46px * 3 buttons */
-}
-
-/* macOS Safe Area - space for traffic lights */
-.mac-safe-area {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  height: 100%;
-  padding-left: 16px;
-  z-index: 1;
-  -webkit-app-region: no-drag;
-}
-
-/* Show safe area on macOS */
-.row-a.mac-row-a .mac-safe-area {
-  display: flex;
-}
-
-/* Gray placeholder circles (visible when window unfocused) */
-.traffic-light-placeholder {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
-}
-
-/* App Logo */
-.app-logo {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  letter-spacing: 0.5px;
-  z-index: 1;
-  -webkit-app-region: no-drag;
-  user-select: none;
-}
-
-/* Windows Controls in Row A */
-.windows-controls {
-  display: none;
-  -webkit-app-region: no-drag;
-  justify-self: end;
-  z-index: 1001;
-  align-self: stretch;
-  gap: 0;
-  grid-column: 3; /* Force into third grid column */
-  grid-row: 1; /* Ensure it's in the first row */
-}
-
-.row-a.windows-row-a .windows-controls,
-.row-a.windows-row-a #windows-controls {
-  display: flex !important;
-  grid-column: 3 !important; /* Ensure it's in the right column */
-  grid-row: 1 !important;
-}
-
-.control-btn {
-  width: 46px;
-  height: 100%;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s ease, color 0.15s ease;
-  -webkit-app-region: no-drag;
-  position: relative;
-}
-
-.control-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-.control-btn:active {
-  background: var(--active-bg);
-}
-
-.control-btn.close-btn:hover {
-  background: var(--accent-danger);
-  color: white;
-}
-
-.control-btn.close-btn:active {
-  background: #c50e1f;
-}
-
-.control-btn.maximize-btn:hover {
-  background: var(--hover-bg);
-}
-
-.control-btn.minimize-btn:hover {
-  background: var(--hover-bg);
-}
-
-.control-btn svg {
-  pointer-events: none;
-  width: 12px;
-  height: 12px;
-}
-
-/* ============================================
-   Toast Notification Bar
-   ============================================ */
-
-.toast-bar {
-  position: fixed;
-  top: calc(var(--row-a-height) + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(-150%);
-  width: auto;
-  max-width: 400px;
-  min-width: 200px;
-  height: auto;
-  background: var(--cell-focus-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  z-index: 1500;
-  font-family: var(--font-mono);
-  font-size: var(--font-size);
-  color: var(--cell-text);
-  opacity: 0;
-  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.toast-bar.visible {
-  transform: translateX(-50%) translateY(0);
-  opacity: 1;
-}
-
-.toast-bar.error {
-  border-color: var(--accent-danger);
-}
-
-.toast-bar.error svg {
-  color: var(--accent-danger);
-}
-
-.toast-bar svg {
-  flex-shrink: 0;
-  color: var(--accent-success);
-}
-
-.toast-bar.hidden {
-  display: none;
-}
-
-/* ============================================
-   Row B: Filter Bar
-   ============================================ */
-
-.row-b {
-  position: fixed;
-  top: var(--row-a-height);
-  left: 0;
-  right: 0;
-  height: var(--row-b-height);
-  background: var(--row-b-bg);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 12px;
-  z-index: 999;
-  border-bottom: 1px solid var(--border-color);
-}
-
-/* Draggable region for Row B */
-.row-b-drag-region {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  -webkit-app-region: drag;
-  z-index: 0;
-}
-
-/* Filter Dropdown Button */
-.filter-dropdown {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--text);
   font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  z-index: 1;
-  -webkit-app-region: no-drag;
-  position: relative;
+  line-height: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: background 0.25s, color 0.25s;
+  user-select: none;
 }
 
-.filter-dropdown:hover {
-  background: var(--hover-bg);
-  border-color: var(--text-muted);
-}
-
-.filter-dropdown svg {
+/* ── Topbar ────────────────────────────────────────────────────────────────── */
+#topbar {
   flex-shrink: 0;
 }
 
-.filter-dropdown .dropdown-arrow {
-  margin-left: 4px;
-  opacity: 0.6;
-  transition: transform 0.2s ease;
+.topbar {
+  height: 42px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+  gap: 0;
+  -webkit-app-region: no-drag;
 }
 
-.filter-dropdown.open .dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-/* Filter Dropdown Menu */
-.filter-menu {
+/* Full-bar drag region — sits behind all interactive elements */
+.topbar-drag-region {
   position: absolute;
-  top: calc(var(--row-a-height) + var(--row-b-height) - 4px);
-  left: 16px;
-  background: var(--row-b-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 4px;
-  z-index: 2000;
-  min-width: 140px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  inset: 0;
+  -webkit-app-region: drag;
+  pointer-events: none;
 }
 
-.filter-menu.hidden {
+/* macOS: reserved space so content doesn't go under native traffic lights.
+   Keep height == topbar height and align-self center so the filter label
+   sits at the same optical baseline as the traffic light dots (y: 14px). */
+.tl-safe-zone {
+  width: 80px;
+  /* 16px margin + 3 × 12px dots + 2 × 8px gaps ≈ 76px, +4px breathing room */
+  height: 42px;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  pointer-events: none;
+}
+
+.topbar-spacer {
+  flex: 1;
+  -webkit-app-region: drag;
+}
+
+/* Wrapper gives the dropdown its anchor point — must be position:relative */
+.filter-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+/* Filter button — bare bold accent text, just a chevron, no border box */
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  letter-spacing: 0.03em;
+  -webkit-app-region: no-drag;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.filter-btn:hover {
+  opacity: 0.75;
+}
+
+.filter-chevron {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+  transition: transform 0.2s;
+  margin-top: 1px;
+}
+
+.filter-btn.open .filter-chevron {
+  transform: rotate(90deg);
+}
+
+/* Filter dropdown */
+.filter-menu {
   display: none;
+  /* hidden by default */
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 4px;
+  min-width: 120px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+.filter-menu.filter-menu--open {
+  display: block;
 }
 
 .filter-option {
   display: block;
-  width: 100%;
   padding: 8px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-mid);
+  border-radius: 4px;
   cursor: pointer;
-  border-radius: 2px;
-  transition: all 0.15s ease;
+  transition: all 0.1s;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .filter-option:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
+  background: var(--surface2);
+  color: var(--text);
 }
 
 .filter-option.active {
-  background: var(--active-bg);
-  color: var(--text-primary);
+  color: var(--accent);
+  background: var(--accent-dim);
+  font-weight: 600;
 }
 
-/* Add Button */
-.add-btn {
+/* Topbar actions group */
+.topbar-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-left: auto;
-  z-index: 1;
+  gap: 10px;
+  margin-left: 12px;
   -webkit-app-region: no-drag;
 }
 
-.add-btn:hover {
-  background: var(--hover-bg);
-  border-color: var(--text-muted);
-}
-
-.add-btn:active {
-  background: var(--active-bg);
-}
-
-/* ============================================
-   Row C: Main Content Area
-   ============================================ */
-
-.content {
-  position: absolute;
-  top: var(--header-total-height);
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: auto;
-  padding: 20px;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* ============================================
-   TableNote Components
-   ============================================ */
-
-/* Empty state message */
-.empty-state {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 60px 20px;
-  font-size: 14px;
-}
-
-/* Table Note Card (D = D1 + D2) */
-.table-note {
-  background: transparent;
+/* ★ Add button — pill shape, * icon, halogen glow on hover
+   Sizing: height 28px keeps it slim but proportionate at 12px font.
+   The pill is a touch wider than tall via padding so it reads as a crisp capsule. */
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 16px;
+  background: var(--accent);
+  color: var(--accent-txt);
   border: none;
-  border-radius: 0;
-  overflow: visible;
-  opacity: var(--table-opacity);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  font-family: 'JetBrains Mono', monospace;
+  transition: box-shadow 0.22s ease, filter 0.18s ease;
+  position: relative;
+  white-space: nowrap;
 }
 
-/* D1: Table Area */
-.table-area {
-  padding: 0;
-  max-height: 400px;
-  background: var(--cell-bg);
-  overflow: auto;
+/* On hover: button surface brightens clearly (walks above the glow),
+   then the glow blooms behind it using the shared --glow variable. */
+.btn-add:hover {
+  filter: brightness(1.25);
+  box-shadow: var(--glow);
 }
 
-/* Hide scrollbars but keep functionality */
-.table-area::-webkit-scrollbar {
-  display: none;
-}
-
-.table-area {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
-}
-
-/* Table Grid */
-.table-grid {
-  display: grid;
-  gap: 1px;
-  background: var(--grid-line-color);
-  border: none;
-  border-radius: 0;
-  overflow: visible;
-  /* Grid columns are set via inline style in JS */
-}
-
-/* Table Cell */
-.table-cell {
-  background: var(--cell-bg);
-  padding: 10px 12px;
-  min-height: 38px;
-  font-family: var(--font-mono);
-  font-size: var(--font-size);
-  color: var(--cell-text);
-  border: none;
-  outline: none;
-  resize: none;
-  overflow: hidden;
-  transition: background 0.15s ease;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.table-cell:focus {
-  background: var(--cell-focus-bg);
-  outline: 2px solid var(--text-secondary);
-  outline-offset: -2px;
-}
-
-.table-cell:hover {
-  background: var(--cell-hover-bg);
-}
-
-.table-cell::placeholder {
-  color: var(--cell-placeholder);
-  opacity: 0.7;
-}
-
-/* Image Cell */
-.table-cell.image-cell {
+/* ⚙ Settings button — accent circle, same size as add button */
+.btn-settings {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  color: var(--accent-txt);
+  font-size: 15px;
+  cursor: pointer;
+  transition: box-shadow 0.22s ease, filter 0.18s ease, transform 0.28s ease;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Same glow treatment as add button; rotate on top */
+.btn-settings:hover {
+  filter: brightness(1.25);
+  box-shadow: var(--glow);
+  transform: rotate(35deg);
+}
+
+/* Windows custom controls */
+.windows-controls {
+  display: flex;
+  gap: 0;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  width: 46px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background 0.1s;
+  margin: -8px 0;
+}
+
+.win-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.win-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+/* ── Main Content ──────────────────────────────────────────────────────────── */
+.frame-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--bg);
+}
+
+/* ── Empty State ───────────────────────────────────────────────────────────── */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 0;
+}
+
+.empty-title {
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.empty-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+.empty-sub span {
+  color: var(--accent);
+}
+
+/* ── Table Card ────────────────────────────────────────────────────────────── */
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+  /* never let the scroll container squish cards */
+  display: flex;
+  flex-direction: column;
+  /* grid + footer stack vertically */
+  position: relative;
+  /* needed for resize handles */
+}
+
+.table-card:hover {
+  border-color: var(--border2);
+}
+
+/* Pinned: accent top stripe */
+.table-card.pinned {
+  border-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.4);
+}
+
+.table-card.pinned::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+/* Grid — flex:1 so it takes remaining space inside the card flex column */
+.table-grid {
+  border-bottom: 1px solid var(--border);
+  flex: 1;
+  overflow: hidden;
+  /* default: content never clips scroll container */
+}
+
+/* When card has a user-set height, the grid area scrolls instead of the card growing */
+.table-card.resizable .table-grid {
+  overflow-y: auto;
+  min-height: 32px;
+}
+
+.table-row {
+  display: grid;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+/* Gap mode: add space between cells */
+.gap-mode .table-row {
+  gap: 2px;
+  background: var(--border);
+}
+
+.gap-mode .cell {
+  border-right: none;
+}
+
+.gap-mode .cell-check {
+  border-right: none;
+}
+
+/* ── Cells ─────────────────────────────────────────────────────────────────── */
+.cell {
+  background: var(--cell-bg);
+  border-right: 1px solid var(--border);
+  padding: 9px 12px;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  min-height: 36px;
+  word-break: break-all;
+  line-height: 1.5;
+  cursor: text;
+  transition: background 0.1s;
+  white-space: pre-wrap;
+}
+
+.cell:last-child {
+  border-right: none;
+}
+
+.cell:hover {
+  background: var(--cell-hover);
+}
+
+.cell.focused,
+.cell:focus {
+  background: var(--cell-hover);
+  box-shadow: inset 0 0 0 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5);
+  color: var(--text-mid);
+  /* dimmed gray while editing */
+  caret-color: var(--text-mid);
+}
+
+/* Content-type classes — override color on blur (unfocused) */
+.cell.empty {
+  color: var(--text-dim);
+}
+
+.cell.has-url {
+  color: #60a8f0;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cell.has-code {
+  color: var(--accent);
+}
+
+.cell.has-path {
+  color: #c0a8e8;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cell.has-image {
   cursor: default;
   padding: 6px;
 }
 
-.table-cell.image-cell img {
-  width: 100%;
-  height: 100%;
+.cell-image {
   max-width: 100%;
-  max-height: 100%;
+  max-height: 120px;
+  border-radius: 3px;
   object-fit: contain;
-  border-radius: 2px;
-  image-rendering: auto;
-  pointer-events: none;
+  display: block;
 }
 
-/* Long-press visual feedback */
-.table-cell.long-pressing {
-  outline: 2px solid var(--text-secondary);
-  outline-offset: -2px;
+/* Cell highlights */
+.cell.hl-r {
+  background: rgba(255, 80, 80, 0.10) !important;
 }
 
-/* D2: Footer Bar */
-.table-footer {
+.cell.hl-o {
+  background: rgba(255, 160, 50, 0.10) !important;
+}
+
+.cell.hl-y {
+  background: rgba(250, 220, 50, 0.10) !important;
+}
+
+.cell.hl-g {
+  background: rgba(80, 200, 100, 0.10) !important;
+}
+
+.cell.hl-b {
+  background: rgba(60, 140, 255, 0.10) !important;
+}
+
+/* Multi-cell drag selection */
+.cell.cell-selected {
+  background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.18) !important;
+  box-shadow: inset 0 0 0 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.4);
+}
+
+/* ── Checklist Checkbox ────────────────────────────────────────────────────── */
+.cell-check {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 40px;
-  padding: 0 0 0 16px;
-  background: var(--table-footer-bg);
-  border-top: 1px solid var(--border-color);
+  justify-content: center;
+  width: 36px;
+  flex: 0 0 36px;
+  background: var(--cell-bg);
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
 }
 
-/* Table Name Input */
+.cell-check:hover {
+  background: var(--cell-hover);
+}
+
+.checkbox {
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: transparent;
+  transition: all 0.1s;
+}
+
+.checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-txt);
+}
+
+/* ── Table Footer ──────────────────────────────────────────────────────────── */
+.table-footer {
+  background: var(--footer-bg);
+  height: 32px;
+  min-height: 32px;
+  /* hard floor — never compress the footer */
+  flex-shrink: 0;
+  /* footer always gets its 32px regardless of card height */
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 4px;
+  gap: 8px;
+}
+
+.pin-badge {
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  opacity: 0.8;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.pin-badge:hover {
+  opacity: 1;
+}
+
 .table-name {
-  flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-primary);
-  padding: 0;
-  user-select: text;
-  -webkit-user-select: text;
+  color: var(--text-mid);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  min-width: 40px;
+  max-width: 180px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.table-name:hover {
+  background: var(--surface2);
+  color: var(--text);
 }
 
 .table-name:focus {
-  outline: 1px solid var(--text-muted);
-  outline-offset: 2px;
-  padding: 4px 6px;
-  margin: -4px -6px;
-  border-radius: 2px;
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border2);
 }
 
-.table-name::placeholder {
-  color: var(--text-muted);
+.footer-spacer {
+  flex: 1;
 }
 
-/* Options Button (3 dots) */
-.options-btn {
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  margin: 0;
-  padding: 0;
+/* Checklist dial */
+.checklist-dial {
+  position: relative;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
 }
 
-.options-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
+.checklist-dial svg {
+  width: 28px;
+  height: 28px;
+  transform: rotate(-90deg);
 }
 
-.options-btn svg {
-  pointer-events: none;
+.dial-track {
+  fill: none;
+  stroke: var(--border2);
+  stroke-width: 2.5;
 }
 
-/* Add Row Button (visible on hover) */
-.add-row-btn {
+.dial-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.dial-text {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
+  justify-content: center;
+  font-size: 7px;
+  color: var(--accent);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Add row button */
+.btn-add-row {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
+  color: var(--text-dim);
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 3px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
   opacity: 0;
-  pointer-events: none;
-  margin-right: 8px;
+  transition: opacity 0.15s, color 0.1s, background 0.1s;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.table-footer:hover .add-row-btn {
+.table-card:hover .btn-add-row {
   opacity: 1;
-  pointer-events: auto;
 }
 
-.add-row-btn:hover {
-  color: var(--text-primary);
+.btn-add-row:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
 }
 
-.add-row-btn svg {
-  pointer-events: none;
+/* Options button */
+.btn-options {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: all 0.1s;
+  padding-bottom: 2px;
 }
 
-/* ============================================
-   Add Table Modal
-   ============================================ */
+.btn-options:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
 
-.modal {
+/* ── Context Menus (shared) ────────────────────────────────────────────────── */
+.ctx-menu {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3000;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 4px;
+  width: 164px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.ctx-menu--hidden {
+  display: none;
+}
+
+.ctx-item {
+  padding: 7px 10px;
+  font-size: 11px;
+  color: var(--text-mid);
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.1s;
+  user-select: none;
+}
+
+.ctx-item:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.ctx-danger:hover {
+  background: rgba(255, 80, 80, 0.1);
+  color: #ff7070;
+}
+
+.ctx-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 0;
+}
+
+.ctx-arrow {
+  font-size: 9px;
+  opacity: 0.5;
+}
+
+/* Highlight swatches */
+.ctx-swatches {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  align-items: center;
+}
+
+.ctx-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.1s;
+  flex-shrink: 0;
+}
+
+.ctx-swatch:hover {
+  transform: scale(1.2);
+}
+
+.ctx-swatch--clear {
+  background: var(--border2) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+/* Table options: column stepper row */
+.ctx-col-row {
+  justify-content: space-between;
+}
+
+.ctx-col-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ctx-col-btn {
+  cursor: pointer;
+  color: var(--text-dim);
+  padding: 0 4px;
+  font-size: 14px;
+  transition: color 0.1s;
+}
+
+.ctx-col-btn:hover {
+  color: var(--text);
+}
+
+.ctx-col-count {
+  color: var(--accent);
+  min-width: 14px;
+  text-align: center;
+}
+
+/* ── Modals ────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 500;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.modal.hidden {
-  display: none;
+.modal-sm {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 22px;
+  width: 300px;
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.6);
 }
 
-/* Modal Overlay */
-.modal-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-}
-
-/* Modal Content Card */
-.modal-content {
-  position: relative;
-  background: var(--row-b-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 24px;
-  min-width: 400px;
-  max-width: 500px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  z-index: 1;
-}
-
-/* Modal Title */
 .modal-title {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin: 0 0 16px 0;
-  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
 }
 
-/* Modal Input */
 .modal-input {
   width: 100%;
-  background: var(--row-c-bg);
-  border: 1px solid var(--border-color);
+  background: var(--bg);
+  border: 1px solid var(--border2);
   border-radius: 4px;
-  padding: 10px 12px;
-  font-family: var(--font-mono);
+  padding: 8px 11px;
+  color: var(--text);
   font-size: 13px;
-  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
   outline: none;
-  transition: border-color 0.2s ease;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+  letter-spacing: 0.02em;
+  transition: border-color 0.15s;
 }
 
 .modal-input:focus {
-  border-color: var(--text-muted);
+  border-color: var(--accent);
 }
 
-.modal-input::placeholder {
-  color: var(--text-muted);
-}
-
-/* Modal Actions */
 .modal-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: flex-end;
 }
 
-/* Modal Buttons */
-.modal-btn {
-  padding: 8px 16px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.modal-btn-cancel {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.modal-btn-cancel:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-  border-color: var(--text-muted);
-}
-
-.modal-btn-add {
-  background: var(--active-bg);
-  color: var(--text-primary);
-}
-
-.modal-btn-add:hover {
-  background: var(--hover-bg);
-  border-color: var(--text-muted);
-}
-
-.modal-btn-add:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ============================================
-   Scrollbar Styling
-   ============================================ */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* ============================================
-   Options Menu Popup
-   ============================================ */
-
-.options-menu {
-  position: absolute;
-  bottom: 100%;
-  right: 0;
-  margin-bottom: 8px;
-  background: var(--row-a-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 4px;
-  z-index: 2000;
-  min-width: 180px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-.options-menu.flip-below {
-  bottom: auto;
-  top: 100%;
-  margin-bottom: 0;
-  margin-top: 8px;
-}
-
-.options-menu.hidden {
-  display: none;
-}
-
-.options-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: all 0.15s ease;
-}
-
-.options-menu-item:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-.options-menu-item.danger:hover {
-  background: rgba(232, 17, 35, 0.15);
-  color: var(--accent-danger-hover);
-}
-
-.options-menu-separator {
-  height: 1px;
-  background: var(--border-color);
-  margin: 4px 0;
-}
-
-/* Column Control Widget */
-.column-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.column-control-btn {
-  width: 24px;
-  height: 24px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 2px;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.column-control-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-  border-color: var(--text-muted);
-}
-
-.column-control-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.column-control-count {
-  flex: 1;
-  text-align: center;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-/* ============================================
-   Checklist Toggle Feature
-   ============================================ */
-
-/* Toggle Switch Container */
-.checklist-toggle-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-}
-
-.checklist-toggle-label {
-  flex: 1;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-/* Toggle Switch (Pill) */
-.checklist-toggle {
-  position: relative;
-  width: 40px;
-  height: 20px;
-  background: var(--border-color);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-  flex-shrink: 0;
-}
-
-.checklist-toggle.active {
-  background: var(--accent-toggle-active);
-}
-
-/* Toggle Knob */
-.checklist-toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: var(--cell-focus-bg);
-  border-radius: 50%;
-  transition: transform 0.3s ease;
-}
-
-.checklist-toggle.active .checklist-toggle-knob {
-  transform: translateX(20px);
-}
-
-/* Checkbox Column */
-.checkbox-cell {
-  background: var(--cell-bg);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 10px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.checkbox-cell:hover {
-  background: var(--cell-hover-bg);
-}
-
-/* Checkbox Box */
-.checkbox-box {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  border: 1.5px solid var(--cell-text);
-  border-radius: 3px;
-  background: var(--cell-focus-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.checkbox-box.checked {
-  background: var(--cell-text);
-  border-color: var(--cell-text);
-}
-
-.checkbox-box svg {
-  opacity: 0;
-  transform: scale(0);
-  transition: all 0.2s ease;
-}
-
-.checkbox-box.checked svg {
-  opacity: 1;
-  transform: scale(1);
-}
-
-/* Table Grid with Checklist Mode */
-.table-grid.checklist-mode {
-  transition: grid-template-columns 0.3s ease;
-}
-
-/* Completion Badge */
-.completion-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  height: 24px;
-  padding: 0 8px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-/* ============================================
-   Cell Context Menu
-   ============================================ */
-
-.cell-context-menu {
-  position: fixed;
-  background: var(--row-a-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 4px;
-  z-index: 3000;
-  min-width: 160px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  display: none;
-}
-
-.cell-context-menu.visible {
-  display: block;
-}
-
-.cell-context-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: all 0.15s ease;
-  position: relative;
-}
-
-.cell-context-menu-item:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-.cell-context-menu-separator {
-  height: 1px;
-  background: var(--border-color);
-  margin: 4px 0;
-}
-
-/* Submenu Arrow */
-.cell-context-menu-item .submenu-arrow {
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-/* Highlight Color Submenu */
-.highlight-submenu {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  margin-left: 4px;
-  background: var(--row-a-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 8px;
-  min-width: 140px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  display: none;
-  z-index: 3001;
-}
-
-.highlight-submenu.visible {
-  display: block;
-}
-
-/* Flip submenu to left side when not enough space on right */
-.highlight-submenu.flip-left {
-  left: auto;
-  right: 100%;
-  margin-left: 0;
-  margin-right: 4px;
-}
-
-/* Flip submenu to top when not enough space below */
-.highlight-submenu.flip-top {
-  top: auto;
-  bottom: 0;
-}
-
-.highlight-color-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.highlight-color-option {
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  position: relative;
-}
-
-.highlight-color-option:hover {
-  border-color: var(--text-primary);
-  transform: scale(1.1);
-}
-
-.highlight-color-option.none {
-  background: linear-gradient(135deg,
-      transparent 46%,
-      var(--accent-danger-hover) 46%,
-      var(--accent-danger-hover) 54%,
-      transparent 54%);
-  border: 1.5px solid var(--border-color);
-}
-
-/* Cell with highlight */
-.table-cell[data-highlight] {
-  position: relative;
-}
-
-/* ============================================
-   Settings Button
-   ============================================ */
-
-.settings-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 1;
-  -webkit-app-region: no-drag;
-  flex-shrink: 0;
-}
-
-.settings-btn:hover {
-  background: var(--hover-bg);
-  border-color: var(--text-muted);
-  color: var(--text-primary);
-}
-
-.settings-btn.active {
-  transform: rotate(90deg);
-  background: var(--active-bg);
-  color: var(--text-primary);
-  border-color: var(--text-muted);
-}
-
-.settings-btn svg {
-  pointer-events: none;
-}
-
-/* ============================================
-   Settings Popup
-   ============================================ */
-
-.settings-popup {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 4000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.settings-popup.hidden {
-  display: none;
-}
-
-.settings-backdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-}
-
-.settings-panel {
-  position: relative;
-  display: flex;
-  width: 640px;
-  height: 520px;
-  background: var(--row-b-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-  z-index: 1;
-  animation: settingsSlideIn 0.2s ease-out;
-}
-
-@keyframes settingsSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-/* Settings Sidebar */
-.settings-sidebar {
-  width: 180px;
-  min-width: 180px;
-  background: var(--row-a-bg);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-}
-
-.settings-sidebar-header {
-  font-family: var(--font-mono);
+.confirm-dialog {
   font-size: 12px;
+  color: var(--text-mid);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+
+.confirm-dialog strong {
+  color: var(--text);
+}
+
+.confirm-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+
+/* Shared button styles */
+.btn-cancel {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+}
+
+.btn-cancel:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.btn-confirm {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: var(--accent-txt);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 20px 16px 12px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.06em;
+  transition: filter 0.15s;
+}
+
+.btn-confirm:hover {
+  filter: brightness(1.1);
+}
+
+.btn-confirm.btn-danger {
+  background: #ff5f57;
+  color: #fff;
+}
+
+/* ── Settings Modal ────────────────────────────────────────────────────────── */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-overlay.hidden {
+  display: none;
+}
+
+.settings-modal {
+  width: 580px;
+  max-height: 78vh;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.settings-sidebar {
+  width: 168px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+  flex-shrink: 0;
+}
+
+.settings-logo {
+  padding: 0 16px 16px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.settings-logo span {
+  color: var(--accent);
 }
 
 .settings-nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 10px 16px;
-  background: transparent;
-  border: none;
-  border-left: 3px solid transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  text-align: left;
+  padding: 9px 16px;
+  font-size: 11px;
+  color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.1s;
+  letter-spacing: 0.04em;
 }
 
 .settings-nav-item:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .settings-nav-item.active {
-  background: var(--active-bg);
-  color: var(--text-primary);
-  border-left-color: var(--text-primary);
+  color: var(--accent);
+  background: var(--accent-dim);
 }
 
-.settings-nav-item svg {
-  flex-shrink: 0;
-  opacity: 0.7;
+.nav-icon {
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
 }
 
-.settings-nav-item.active svg {
-  opacity: 1;
-}
-
-/* Settings Content Pane */
 .settings-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
-}
-
-.settings-section.hidden {
-  display: none;
+  padding: 22px;
 }
 
 .settings-section-title {
-  font-family: var(--font-mono);
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin: 0 0 20px 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.settings-panel-section {
+  display: block;
 }
 
-.settings-item {
+.settings-panel-section.hidden {
+  display: none;
+}
+
+.setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border-color);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
 }
 
-.settings-item:last-child {
+.setting-row:last-child {
   border-bottom: none;
 }
 
-.settings-item-info {
+.setting-label {
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.setting-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* Segmented control */
+.seg-ctrl {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  margin-right: 16px;
-}
-
-.settings-item-label {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
-.settings-item-desc {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-/* Settings Toggle Switch */
-.settings-toggle {
-  position: relative;
-  width: 40px;
-  height: 20px;
-  background: var(--border-color);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-  flex-shrink: 0;
-}
-
-.settings-toggle.active {
-  background: var(--accent-toggle-active);
-}
-
-.settings-toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: var(--cell-focus-bg);
-  border-radius: 50%;
-  transition: transform 0.3s ease;
-}
-
-.settings-toggle.active .settings-toggle-knob {
-  transform: translateX(20px);
-}
-
-/* Settings Select */
-.settings-select {
-  background: var(--row-c-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-primary);
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s ease;
-  flex-shrink: 0;
-  min-width: 100px;
-}
-
-.settings-select:hover,
-.settings-select:focus {
-  border-color: var(--text-muted);
-}
-
-/* Settings Number Input */
-.settings-number-input {
-  width: 70px;
-  background: var(--row-c-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.2s ease;
-  text-align: center;
-  flex-shrink: 0;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.settings-number-input::-webkit-inner-spin-button,
-.settings-number-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.settings-number-input:hover,
-.settings-number-input:focus {
-  border-color: var(--text-muted);
-}
-
-/* Sub-section Headings */
-.settings-sub-heading {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  margin: 16px 0 6px 0;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.settings-sub-heading:first-of-type {
-  margin-top: 8px;
-}
-
-/* Color Input */
-.settings-color-input {
-  width: 36px;
-  height: 28px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
   padding: 2px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  flex-shrink: 0;
-  -webkit-app-region: no-drag;
-}
-
-.settings-color-input::-webkit-color-swatch-wrapper {
-  padding: 1px;
-}
-
-.settings-color-input::-webkit-color-swatch {
-  border: none;
-  border-radius: 2px;
-}
-
-/* Text Input */
-.settings-text-input {
-  width: 140px;
-  background: var(--row-a-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 5px 8px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.2s ease;
+  gap: 2px;
   flex-shrink: 0;
 }
 
-.settings-text-input::placeholder {
-  color: var(--text-muted);
-}
-
-.settings-text-input:hover,
-.settings-text-input:focus {
-  border-color: var(--text-muted);
-}
-
-/* Range Input */
-.settings-range-input {
-  width: 100px;
-  height: 4px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--border-color);
-  border-radius: 2px;
-  outline: none;
+.seg-btn {
+  padding: 4px 10px;
+  font-size: 10px;
+  border-radius: 3px;
+  color: var(--text-dim);
   cursor: pointer;
-  flex-shrink: 0;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+  user-select: none;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.settings-range-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  cursor: pointer;
+.seg-btn.active {
+  background: var(--accent);
+  color: var(--accent-txt);
 }
 
-/* Wallpaper Gallery Grid */
-.settings-wallpaper-gallery {
-  padding: 0 0 8px 0;
-}
-
-.wallpaper-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-
-.wallpaper-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 4px;
-  background-size: cover;
-  background-position: center;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.15s ease;
-}
-
-.wallpaper-thumb:hover {
-  border-color: var(--text-muted);
-  transform: scale(1.04);
-}
-
-.wallpaper-thumb.active {
-  border-color: var(--accent-success);
-}
-
-/* Highlight Color Swatches */
-.settings-highlight-row {
+/* Accent dot picker */
+.accent-grid {
   display: flex;
   gap: 8px;
-  align-items: center;
   flex-wrap: wrap;
-  padding: 4px 0;
 }
 
-.settings-highlight-swatch {
+.accent-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
   position: relative;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1.5px solid var(--border-color);
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform 0.15s ease, border-color 0.2s ease;
 }
 
-.settings-highlight-swatch:hover {
+.accent-dot:hover {
   transform: scale(1.15);
-  border-color: var(--text-muted);
 }
 
-.settings-highlight-swatch input[type="color"] {
+.accent-dot.active {
+  border-color: var(--text);
+}
+
+.accent-dot.active::after {
+  content: '✓';
   position: absolute;
-  top: -4px;
-  left: -4px;
-  width: calc(100% + 8px);
-  height: calc(100% + 8px);
-  border: none;
-  cursor: pointer;
-  opacity: 0;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.6);
 }
 
-.settings-highlight-swatch-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted);
+/* Toggle */
+.toggle {
+  width: 36px;
+  height: 20px;
+  background: var(--border2);
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle.on {
+  background: var(--accent);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+  transition: left 0.2s;
+}
+
+.toggle.on::after {
+  left: 19px;
+}
+
+/* Small toggle for context menu rows */
+.toggle-sm {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.toggle-sm::after {
+  width: 10px;
+  height: 10px;
+  top: 3px;
+  left: 3px;
+}
+
+.toggle-sm.on::after {
+  left: 15px;
+}
+
+/* Context menu row with inline toggle */
+.ctx-toggle-row {
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Column stepper */
+.col-stepper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.col-step-btn {
+  cursor: pointer;
+  color: var(--text-dim);
+  padding: 0 6px;
+  font-size: 14px;
+  transition: color 0.1s;
+  user-select: none;
+}
+
+.col-step-btn:hover {
+  color: var(--text);
+}
+
+#default-cols-val {
+  color: var(--accent);
+  min-width: 12px;
   text-align: center;
-  margin-top: 2px;
+}
+
+/* Reset button */
+.btn-reset {
+  margin-top: 18px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+}
+
+.btn-reset:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+/* ── App Footer ────────────────────────────────────────────────────────────── */
+#app-footer {
+  flex-shrink: 0;
+}
+
+.app-footer {
+  height: 36px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.footer-brand {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+.footer-brand span {
+  color: var(--accent);
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.footer-dot {
+  color: var(--border2);
+  margin: 0 6px;
+}
+
+.footer-end {
+  margin-left: auto;
+}
+
+.footer-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.8;
+}
+
+.status-dot.saving {
+  background: var(--tl-yellow);
+  animation: pulse 0.8s infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ── Toast System ──────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Position: center of title bar (default) */
+.toast-container.pos-titlebar {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+/* Position: top-right corner */
+.toast-container.pos-top-right {
+  top: 48px;
+  right: 16px;
+  align-items: flex-end;
+}
+
+/* Position: bottom-center */
+.toast-container.pos-bottom-center {
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+/* Position: bottom-right corner */
+.toast-container.pos-bottom-right {
+  bottom: 52px;
+  right: 16px;
+  align-items: flex-end;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  border: 1px solid;
+  animation: toastIn 0.2s ease forwards;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.toast.out {
+  animation: toastOut 0.2s ease forwards;
+}
+
+.toast.success {
+  background: rgba(20, 20, 20, 0.92);
+  border-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
+  color: var(--accent);
+}
+
+.toast.error {
+  background: rgba(20, 20, 20, 0.92);
+  border-color: rgba(255, 80, 80, 0.3);
+  color: #ff7070;
+}
+
+.toast.info {
+  background: rgba(20, 20, 20, 0.92);
+  border-color: var(--border2);
+  color: var(--text-mid);
+}
+
+.toast-icon {
+  font-size: 12px;
+}
+
+/* Top positions: override animation to drop down instead of rise up */
+.toast-container.pos-titlebar .toast,
+.toast-container.pos-top-right .toast {
+  animation: toastInDown 0.2s ease forwards;
+}
+
+.toast-container.pos-titlebar .toast.out,
+.toast-container.pos-top-right .toast.out {
+  animation: toastOutDown 0.2s ease forwards;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+
+@keyframes toastOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+}
+
+/* ── Light-mode toast override ─────────────────────────────────────────────── */
+[data-mode="light"] .toast.success,
+[data-mode="light"] .toast.error,
+[data-mode="light"] .toast.info {
+  background: rgba(240, 237, 232, 0.95);
 }

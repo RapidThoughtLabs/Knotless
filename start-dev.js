@@ -3,13 +3,13 @@ import waitOn from 'wait-on';
 
 // Start Vite dev server
 console.log('Starting Vite dev server...');
-const vite = spawn('npx', ['vite'], {
+const vite = spawn('npx', ['vite', '--port', '5173', '--strictPort'], {
     stdio: 'inherit',
     shell: true,
 });
 
 // Wait for Vite to be ready, then start Electron
-waitOn({ resources: ['http://localhost:5173'], timeout: 30000 })
+waitOn({ resources: ['http://localhost:5173'], timeout: 60000 })
     .then(() => {
         console.log('Vite is ready. Starting Electron...');
         const electron = spawn('npx', ['electron', '.'], {

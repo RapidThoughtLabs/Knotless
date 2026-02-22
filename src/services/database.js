@@ -7,7 +7,7 @@ class DatabaseService {
     constructor() {
         // Initialize NeDB with persistence to user data directory
         const dbPath = path.join(app.getPath('userData'), 'tables.db');
-        
+
         // Ensure directory exists (Windows may need this)
         const dbDir = path.dirname(dbPath);
         if (!fs.existsSync(dbDir)) {
@@ -21,7 +21,7 @@ class DatabaseService {
                 throw error;
             }
         }
-        
+
         this.db = new Datastore({
             filename: dbPath,
             autoload: true,
@@ -45,6 +45,8 @@ class DatabaseService {
                 checklist: tableData.checklist || false,
                 checked: tableData.checked || [],
                 highlights: tableData.highlights || {},
+                sortOrder: tableData.sortOrder || Date.now(),
+                cardHeight: tableData.cardHeight || null,
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
@@ -76,10 +78,12 @@ class DatabaseService {
      */
     getTablesByType(type) {
         return new Promise((resolve, reject) => {
-            this.db.find({ type }).sort({ pinned: -1, createdAt: -1 }).exec((err, docs) => {
-                if (err) reject(err);
-                else resolve(docs);
-            });
+            this.db.find({ type })
+                .sort({ pinned: -1, sortOrder: -1, createdAt: -1 })
+                .exec((err, docs) => {
+                    if (err) reject(err);
+                    else resolve(docs);
+                });
         });
     }
 

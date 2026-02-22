@@ -1,0 +1,156 @@
+/*
+ * RTL Theme Variables — v1
+ * Rapid Thought Labs shared design token system
+ * Used by: noteless, and future RTL products
+ *
+ * Apply to <html> tag:  data-mode="dark|light|system"  data-accent="lime|red|pink|purple|yellow|blue|cyan|orange"
+ */
+
+/* ══════════════════════════════════════════════════
+   DARK MODE (default)  accent = lime
+══════════════════════════════════════════════════ */
+:root {
+    --accent-h: 86;
+    --accent-s: 84%;
+    --accent-l: 62%;
+    --accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+    --accent-dim: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.12);
+    --accent-txt: #0a0a0a;
+
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --footer-bg: #1a1a1a;
+    --border: #2e2e2e;
+    --border2: #383838;
+    --cell-bg: #111111;
+    --cell-hover: #171717;
+
+    --text: #e8e8e0;
+    --text-mid: #888880;
+    --text-dim: #4e4e48;
+
+    /* macOS traffic light colours — fixed, not themed */
+    --tl-red: #ff5f57;
+    --tl-yellow: #febc2e;
+    --tl-green: #28c840;
+
+    /* ── Reusable accent glow ──────────────────────────────────────────────────
+       Apply with: box-shadow: var(--glow);
+       Three layers: tight crisp halo → soft bloom → wide atmospheric spread.
+       Works with any --accent-h/s/l accent preset automatically.
+    ────────────────────────────────────────────────────────────────────────── */
+    --glow:
+        0 0 2px 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.70),
+        0 0 10px 3px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.35),
+        0 0 28px 6px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.15);
+}
+
+/* ══════════════════════════════════════════════════
+   LIGHT MODE
+══════════════════════════════════════════════════ */
+[data-mode="light"] {
+    --bg: #f0ede8;
+    --surface: #e8e4de;
+    --surface2: #dedad4;
+    --footer-bg: #e2ddd7;
+    --border: #c8c4bc;
+    --border2: #b8b4ac;
+    --cell-bg: #ebe8e2;
+    --cell-hover: #e4e0da;
+    --text: #1a1a16;
+    --text-mid: #6a6a60;
+    --text-dim: #aaa89e;
+    --accent-txt: #0a0a0a;
+}
+
+/* ══════════════════════════════════════════════════
+   ACCENT COLOUR PRESETS  (hue only — dark & light)
+══════════════════════════════════════════════════ */
+[data-accent="lime"] {
+    --accent-h: 86;
+    --accent-s: 84%;
+    --accent-l: 62%;
+}
+
+[data-accent="red"] {
+    --accent-h: 4;
+    --accent-s: 90%;
+    --accent-l: 62%;
+    --accent-txt: #fff;
+}
+
+[data-accent="pink"] {
+    --accent-h: 330;
+    --accent-s: 80%;
+    --accent-l: 68%;
+}
+
+[data-accent="purple"] {
+    --accent-h: 270;
+    --accent-s: 70%;
+    --accent-l: 68%;
+}
+
+[data-accent="yellow"] {
+    --accent-h: 46;
+    --accent-s: 96%;
+    --accent-l: 60%;
+}
+
+[data-accent="blue"] {
+    --accent-h: 210;
+    --accent-s: 80%;
+    --accent-l: 62%;
+}
+
+[data-accent="cyan"] {
+    --accent-h: 186;
+    --accent-s: 80%;
+    --accent-l: 52%;
+}
+
+[data-accent="orange"] {
+    --accent-h: 25;
+    --accent-s: 90%;
+    --accent-l: 58%;
+    --accent-txt: #fff;
+}
+
+/* ══════════════════════════════════════════════════
+   SCROLLBARS
+══════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border2);
+    border-radius: 2px;
+}
+
+/* ══════════════════════════════════════════════════
+   RANGE INPUT
+══════════════════════════════════════════════════ */
+input[type=range] {
+    -webkit-appearance: none;
+    width: 130px;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
