@@ -53,6 +53,11 @@ body {
   -webkit-app-region: no-drag;
 }
 
+/* Windows: flush right edge so the tile sits in the corner */
+.topbar.win-topbar {
+  padding-right: 0;
+}
+
 /* Full-bar drag region — sits behind all interactive elements */
 .topbar-drag-region {
   position: absolute;
@@ -228,17 +233,36 @@ body {
   transform: rotate(35deg);
 }
 
-/* Windows custom controls */
+/* ── Windows collapsible corner controls ─────────────────────────────────── */
 .windows-controls {
-  display: flex;
-  gap: 0;
+  position: relative;   /* stays in flex flow — spacer absorbs the expansion */
+  flex-shrink: 0;
+  height: 42px;
   margin-left: 8px;
+  width: 42px;
+  overflow: hidden;
+  transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-app-region: no-drag;
+  z-index: 20;
+}
+
+.windows-controls:hover,
+.windows-controls:focus-within {
+  width: 126px;
+}
+
+.win-controls-inner {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  height: 100%;
 }
 
 .win-btn {
-  width: 46px;
+  width: 42px;
   height: 42px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -246,16 +270,42 @@ body {
   border: none;
   color: var(--text-mid);
   cursor: pointer;
-  transition: background 0.1s;
-  margin: -8px 0;
+  transition: background 0.15s, color 0.15s;
 }
 
-.win-btn:hover {
+/* Idle: close tile filled with accent color */
+.win-close {
+  background: var(--accent);
+  color: var(--accent-txt);
+}
+
+/* Icons hidden in idle state */
+.windows-controls svg {
+  opacity: 0;
+  transition: opacity 80ms ease;
+}
+
+/* Expanded: icons fade in, close resets to neutral, hover states activate */
+.windows-controls:hover svg,
+.windows-controls:focus-within svg {
+  opacity: 1;
+  transition: opacity 120ms ease 80ms;
+}
+
+.windows-controls:hover .win-close,
+.windows-controls:focus-within .win-close {
+  background: transparent;
+  color: var(--text-mid);
+}
+
+.windows-controls:hover .win-btn:hover,
+.windows-controls:focus-within .win-btn:focus {
   background: var(--surface2);
   color: var(--text);
 }
 
-.win-close:hover {
+.windows-controls:hover .win-close:hover,
+.windows-controls:focus-within .win-close:focus {
   background: #e81123;
   color: #fff;
 }
@@ -381,7 +431,7 @@ body {
   word-break: break-all;
   line-height: 1.5;
   cursor: text;
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.15s;
   white-space: pre-wrap;
 }
 
@@ -397,9 +447,9 @@ body {
 .cell:focus {
   background: var(--cell-hover);
   box-shadow: inset 0 0 0 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5);
-  color: var(--text-mid);
-  /* dimmed gray while editing */
-  caret-color: var(--text-mid);
+  color: var(--text-edit);
+  /* slightly dimmed while editing — brighter than --text-mid for legibility */
+  caret-color: var(--text-edit);
 }
 
 /* Content-type classes — override color on blur (unfocused) */
@@ -889,13 +939,20 @@ body {
 
 .settings-modal {
   width: 580px;
-  max-height: 78vh;
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 8px;
-  display: flex;
-  overflow: hidden;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.settings-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .settings-sidebar {
@@ -1392,4 +1449,31 @@ body {
 [data-mode="light"] .toast.error,
 [data-mode="light"] .toast.info {
   background: rgba(240, 237, 232, 0.95);
+}
+
+/* ── Respect OS-level "reduce motion" preference (Windows Ease of Access) ───── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ── In-app animation level: reduced (kill micro-transitions, keep structure) ── */
+[data-anim="reduced"] *,
+[data-anim="reduced"] *::before,
+[data-anim="reduced"] *::after {
+  transition-duration: 0.001ms !important;
+}
+
+/* ── In-app animation level: off (zero out everything) ──────────────────────── */
+[data-anim="off"] *,
+[data-anim="off"] *::before,
+[data-anim="off"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }

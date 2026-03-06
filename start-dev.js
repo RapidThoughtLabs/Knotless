@@ -1,5 +1,12 @@
 import { spawn } from 'child_process';
 import waitOn from 'wait-on';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Resolve the local Electron binary directly — avoids npx / createRequire issues
+const isWin = process.platform === 'win32';
+const electronBin = path.join(__dirname, 'node_modules', '.bin', isWin ? 'electron.cmd' : 'electron');
 
 // Start Vite dev server
 console.log('Starting Vite dev server...');
@@ -12,9 +19,9 @@ const vite = spawn('npx', ['vite', '--port', '5173', '--strictPort'], {
 waitOn({ resources: ['http://localhost:5173'], timeout: 60000 })
     .then(() => {
         console.log('Vite is ready. Starting Electron...');
-        const electron = spawn('npx', ['electron', '.'], {
+        const electron = spawn(electronBin, ['.'], {
             stdio: 'inherit',
-            shell: true,
+            shell: isWin,
         });
 
         electron.on('close', () => {

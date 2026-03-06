@@ -1,12 +1,11 @@
 import Datastore from 'nedb';
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
 
 class DatabaseService {
-    constructor() {
+    constructor(userDataPath) {
         // Initialize NeDB with persistence to user data directory
-        const dbPath = path.join(app.getPath('userData'), 'tables.db');
+        const dbPath = path.join(userDataPath, 'tables.db');
 
         // Ensure directory exists (Windows may need this)
         const dbDir = path.dirname(dbPath);
@@ -28,6 +27,7 @@ class DatabaseService {
             timestampData: true // Automatically add createdAt and updatedAt
         });
     }
+
 
     /**
      * Create a new table

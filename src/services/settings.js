@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
 
 const DEFAULT_SETTINGS = {
     general: {
@@ -20,10 +19,11 @@ const DEFAULT_SETTINGS = {
 };
 
 class SettingsService {
-    constructor() {
-        this.filePath = path.join(app.getPath('userData'), 'settings.json');
+    constructor(userDataPath) {
+        this.filePath = path.join(userDataPath, 'settings.json');
         this.settings = this._load();
     }
+
 
     _load() {
         try {

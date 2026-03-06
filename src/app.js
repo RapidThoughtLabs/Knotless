@@ -12,7 +12,7 @@ import { AppFooter } from './components/app-footer.js';
 import { TableCard } from './components/table-card.js';
 import { CellContextMenu } from './components/context-menu.js';
 import { TableOptionsMenu } from './components/table-options-menu.js';
-import { SettingsModal } from './components/settings-modal.js';
+import { SettingsModal, applyAnimationLevel } from './components/settings-modal.js';
 import { showAddTableModal, showConfirm } from './components/modals.js';
 import { showToast, setToastPosition } from './components/toast.js';
 
@@ -51,12 +51,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     await themeEngine.init();
 
-    // 1.5 — Apply saved toast position before any toast fires
+    // 1.5 — Apply saved toast position and animation level before any toast fires
     try {
         const savedSettings = await settings()?.get();
         const toastPos = savedSettings?.general?.toastPosition ?? 'titlebar';
         setToastPosition(toastPos);
-    } catch { /* no settings yet — use default */ }
+        // Mac has its own native animation system — never touch it
+        if (!window.electron?.isMac) {
+            const animLevel = savedSettings?.general?.animations ?? 'full';
+            applyAnimationLevel(animLevel);
+        }
+    } catch { /* no settings yet — use defaults */ }
 
     // 2 — Topbar
     topbar = new Topbar();
@@ -246,17 +251,20 @@ async function handleMoveUp(tableId) {
     const aboveTable = tables.find(t => t._id === aboveId);
     if (!aboveTable) return;
 
-    // Animate the visual swap
+    // Animate the visual swap (skip if animations are off)
     const thisRect = thisCard.getBoundingClientRect();
     const aboveRect = aboveCard.getBoundingClientRect();
     const deltaY = thisRect.top - aboveRect.top;
+    const animOff = document.documentElement.dataset.anim === 'off';
 
-    thisCard.style.transition = 'transform 0.25s ease';
-    aboveCard.style.transition = 'transform 0.25s ease';
-    thisCard.style.transform = `translateY(-${deltaY}px)`;
-    aboveCard.style.transform = `translateY(${deltaY}px)`;
+    if (!animOff) {
+        thisCard.style.transition = 'transform 0.25s ease';
+        aboveCard.style.transition = 'transform 0.25s ease';
+        thisCard.style.transform = `translateY(-${deltaY}px)`;
+        aboveCard.style.transform = `translateY(${deltaY}px)`;
+    }
 
-    // After animation, swap in DOM and persist
+    // After animation (or instantly if off), swap in DOM and persist
     setTimeout(async () => {
         thisCard.style.transition = '';
         thisCard.style.transform = '';
@@ -282,7 +290,7 @@ async function handleMoveUp(tableId) {
             console.error('[App] handleMoveUp failed:', err);
             showToast('could not reorder', 'error');
         }
-    }, 260);
+    }, animOff ? 0 : 260);
 }
 
 // ── Persist card height to DB ──────────────────────────────────────────────────
@@ -324,21 +332,28 @@ async function handleCellAction(action, cellEl, extra) {
                 } catch { showToast('copy failed', 'error'); }
             } else {
                 await navigator.clipboard.writeText(currentVal);
-                showToast(`copied`, 'success');
+                showToast('copied', 'success');
             }
             break;
         }
 
         case 'paste': {
+            // ── RULE: image cells are read-only ──────────────────────────────
+            if (isImageCell(currentVal)) {
+                showToast('image cells are read-only — long press to copy', 'error');
+                return;
+            }
             try {
                 const items = await navigator.clipboard.read();
                 for (const item of items) {
                     const imgType = item.types.find(t => t.startsWith('image/'));
                     if (imgType) {
-                        if (currentVal && !isImageCell(currentVal)) {
-                            showToast('clear cell before pasting image', 'error');
+                        // ── RULE: can't add image to a cell that has text ────
+                        if (currentVal && currentVal.trim()) {
+                            showToast("can't add an image to a text cell — clear it first", 'error');
                             return;
                         }
+                        // Empty cell — allow image paste
                         const blob = await item.getType(imgType);
                         const buf = await blob.arrayBuffer();
                         const path = await window.electron.images.save(Array.from(new Uint8Array(buf)));
@@ -348,11 +363,10 @@ async function handleCellAction(action, cellEl, extra) {
                         return;
                     }
                 }
+                // Text paste into text / empty cell
                 const text = await navigator.clipboard.readText();
                 if (text) {
-                    if (isImageCell(currentVal)) { showToast('clear cell first', 'error'); return; }
                     await handleCellUpdate(tableId, row, col, text);
-                    // Update cell text in-place
                     cellEl.textContent = text;
                 }
             } catch { showToast('paste failed', 'error'); }

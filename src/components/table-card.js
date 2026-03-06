@@ -18,6 +18,15 @@ const IMG_PREFIX = 'IMG:';
 function isImageCell(val) { return typeof val === 'string' && val.startsWith(IMG_PREFIX); }
 function getImagePath(val) { return val.slice(IMG_PREFIX.length); }
 
+// — HTML escape util for clipboard HTML table —
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // — Cell content-type class detection —
 const URL_PATTERN = /^https?:\/\//i;
 const CODE_PATTERN = /^[`'"!@#\$]{1}|sk-|ghp_|sk-ant/;
@@ -185,6 +194,7 @@ export class TableCard {
         if (isImageCell(val)) {
             cell.classList.add('has-image');
             cell.contentEditable = 'false';
+            cell.tabIndex = 0;
             const imgPath = getImagePath(val);
             cell.innerHTML = `<img class="cell-image" src="" alt="cell image" />`;
             // Resolve file:// URL for cross-platform display
@@ -229,28 +239,63 @@ export class TableCard {
             this._cb.onCellUpdate?.(_id, row, col, val);
         });
 
-        // Enter key blurs (no newlines in cells)
-        cell.addEventListener('keydown', (e) => {
+        // Enter key blurs (no newlines in cells).
+        // Ctrl/Cmd+C with no text selection → copy all cell text.
+        // Ctrl/Cmd+X → cut cell content (copy + clear).
+        cell.addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') { e.preventDefault(); cell.blur(); }
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                const sel = window.getSelection();
+                if (sel && sel.isCollapsed) {
+                    // Nothing selected — copy the entire cell value
+                    e.preventDefault();
+                    const val = cell.textContent.trim();
+                    if (val) {
+                        navigator.clipboard.writeText(val)
+                            .then(() => showToast('copied', 'success'))
+                            .catch(() => showToast('copy failed', 'error'));
+                    }
+                }
+                // If text is already selected, let the browser copy the selection.
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+                // Image cells: Ctrl+X cuts via _cutCell (browser default would do nothing useful)
+                // Text cells with a selection: let browser handle the selection cut natively,
+                //   unless nothing is selected — then cut the whole cell.
+                if (cell.classList.contains('has-image')) {
+                    e.preventDefault();
+                    await this._cutCell(cell);
+                } else {
+                    const sel = window.getSelection();
+                    if (sel && sel.isCollapsed) {
+                        e.preventDefault();
+                        await this._cutCell(cell);
+                    }
+                    // If text is selected, browser cuts the selection — leave it alone.
+                }
+            }
         });
 
-        // Paste: text or image
+        // Paste: text only into text cells, images only into empty cells.
         cell.addEventListener('paste', async (e) => {
             e.preventDefault();
             await this._handlePaste(e, cell);
         });
 
-        // Double-click: image cells → copy, text cells → paste from clipboard
-        cell.addEventListener('dblclick', async (e) => {
-            e.preventDefault();
-            if (cell.classList.contains('has-image')) {
-                await this._copyCell(cell);
-            } else {
-                await this._handlePasteFromClipboard(cell);
-            }
+        // Double-click on text cells → select all text (like a normal editor).
+        // Image cells: no action on double-click.
+        cell.addEventListener('dblclick', (e) => {
+            if (cell.classList.contains('has-image')) return;
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
         });
 
-        // Long-press (500ms): copy content
+        // Long-press (500ms): copy cell content (text or image).
         cell.addEventListener('pointerdown', () => {
             this._lpTimer = setTimeout(() => this._copyCell(cell), 500);
         });
@@ -265,85 +310,57 @@ export class TableCard {
     }
 
     async _handlePaste(e, cell) {
+        const { _id } = this._table;
         const row = parseInt(cell.dataset.row);
         const col = parseInt(cell.dataset.col);
         const isImg = cell.classList.contains('has-image');
 
-        // Try clipboard items API (images)
+        // ── RULE: image cells are read-only ──────────────────────────────────
+        if (isImg) {
+            showToast('image cells are read-only — long press to copy', 'error');
+            return;
+        }
+
         const items = e.clipboardData?.items ?? [];
         for (const item of items) {
             if (item.type.startsWith('image/')) {
-                if (!isImg) {
-                    // Can only paste image into cell that's empty or already an image
-                    const text = cell.textContent.trim();
-                    if (text) { showToast('clear cell before pasting image', 'error'); return; }
+                // ── RULE: can't add an image to a cell that already has text ─
+                const existingText = cell.textContent.trim();
+                if (existingText) {
+                    showToast("can't add an image to a text cell — clear it first", 'error');
+                    return;
                 }
+                // Empty cell — allow image paste
                 const file = item.getAsFile();
                 if (!file) return;
                 const buf = await file.arrayBuffer();
                 try {
                     const path = await window.electron.images.save(Array.from(new Uint8Array(buf)));
                     const imgVal = `${IMG_PREFIX}${path}`;
+                    // Update local model and re-render immediately
+                    if (this._table.data[row]) this._table.data[row][col] = imgVal;
+                    this._renderCellContent(cell, imgVal);
                     this._cb.onCellUpdate?.(_id, row, col, imgVal);
                     showToast('image pasted', 'success');
-                } catch (err) {
+                } catch {
                     showToast('failed to save image', 'error');
                 }
                 return;
             }
         }
 
-        // Plain text
-        if (isImg) { showToast('clear cell before pasting text', 'error'); return; }
+        // Plain text paste into text / empty cell
         const text = e.clipboardData?.getData('text/plain') ?? '';
         if (text) {
             cell.textContent = text;
-            // collapseToEnd so cursor is at end
+            // Place cursor at end
             const sel = window.getSelection();
             const range = document.createRange();
             range.selectNodeContents(cell);
             range.collapse(false);
             sel?.removeAllRanges();
             sel?.addRange(range);
-            this._cb.onCellUpdate?.(this._table._id, row, col, text);
-        }
-    }
-
-    async _handlePasteFromClipboard(cell) {
-        try {
-            const items = await navigator.clipboard.read();
-            for (const item of items) {
-                const imgType = item.types.find(t => t.startsWith('image/'));
-                if (imgType) {
-                    const blob = await item.getType(imgType);
-                    const buf = await blob.arrayBuffer();
-                    const path = await window.electron.images.save(Array.from(new Uint8Array(buf)));
-                    const row = parseInt(cell.dataset.row);
-                    const col = parseInt(cell.dataset.col);
-                    const imgVal = `${IMG_PREFIX}${path}`;
-                    this._cb.onCellUpdate?.(this._table._id, row, col, imgVal);
-                    // Update the local data model so rerender picks it up
-                    if (this._table.data[row]) this._table.data[row][col] = imgVal;
-                    // Render the image in the cell immediately
-                    this._renderCellContent(cell, imgVal);
-                    showToast('image pasted', 'success');
-                    return;
-                }
-            }
-            const text = await navigator.clipboard.readText();
-            if (text) {
-                const row = parseInt(cell.dataset.row);
-                const col = parseInt(cell.dataset.col);
-                // Update local data model
-                if (this._table.data[row]) this._table.data[row][col] = text;
-                // Update DOM immediately
-                cell.textContent = text;
-                this._renderCellContent(cell, text);
-                this._cb.onCellUpdate?.(this._table._id, row, col, text);
-                showToast('pasted', 'success');
-            }
-        } catch (err) {
-            showToast('clipboard read failed', 'error');
+            this._cb.onCellUpdate?.(_id, row, col, text);
         }
     }
 
@@ -370,6 +387,49 @@ export class TableCard {
         }
     }
 
+    async _cutCell(cell) {
+        const { _id } = this._table;
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const val = this._table.data?.[row]?.[col] ?? '';
+
+        if (!val.trim()) return; // nothing to cut
+
+        if (isImageCell(val)) {
+            const imgPath = getImagePath(val);
+            const fileName = imgPath.split('/').pop().split('\\').pop() || 'image';
+            try {
+                const url = await this._resolveImageUrl(imgPath);
+                const res = await fetch(url);
+                const blob = await res.blob();
+                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+            } catch {
+                showToast('cut failed', 'error');
+                return;
+            }
+            // Delete the image file from disk
+            await window.electron.images.delete(imgPath).catch(() => {});
+            // Clear cell
+            if (this._table.data[row]) this._table.data[row][col] = '';
+            this._renderCellContent(cell, '');
+            this._cb.onCellUpdate?.(_id, row, col, '');
+            showToast(`cut "${fileName}"`, 'success');
+        } else {
+            try {
+                await navigator.clipboard.writeText(val);
+            } catch {
+                showToast('cut failed', 'error');
+                return;
+            }
+            const preview = val.length > 24 ? val.substring(0, 24) + '…' : val;
+            // Clear cell
+            if (this._table.data[row]) this._table.data[row][col] = '';
+            cell.textContent = '';
+            this._cb.onCellUpdate?.(_id, row, col, '');
+            showToast(`cut "${preview}"`, 'success');
+        }
+    }
+
     _toggleCheck(rowIndex) {
         const { _id, checked = [] } = this._table;
         const newChecked = [...checked];
@@ -392,11 +452,50 @@ export class TableCard {
 
     // ── Multi-cell drag selection ──────────────────────────────────────────
 
+    /**
+     * Build clipboard payload from a NodeList of .cell-selected elements.
+     * Returns { rowMap, tsv, html, count }
+     */
+    _buildSelectionPayload(selectedCells) {
+        const rowMap = new Map();
+        selectedCells.forEach(c => {
+            const r = parseInt(c.dataset.row);
+            const col = parseInt(c.dataset.col);
+            if (!rowMap.has(r)) rowMap.set(r, new Map());
+            const val = this._table.data?.[r]?.[col] ?? '';
+            rowMap.get(r).set(col, val);
+        });
+
+        const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
+
+        const tsv = sortedRows.map(([, colMap]) => {
+            const cols = [...colMap.entries()].sort((a, b) => a[0] - b[0]);
+            return cols.map(([, v]) => isImageCell(v) ? '[image]' : v).join('\t');
+        }).join('\n');
+
+        const htmlRows = sortedRows.map(([, colMap]) => {
+            const cols = [...colMap.entries()].sort((a, b) => a[0] - b[0]);
+            const tds = cols.map(([, v]) => {
+                const display = isImageCell(v) ? '[image]' : escapeHtml(v);
+                return `<td>${display}</td>`;
+            }).join('');
+            return `<tr>${tds}</tr>`;
+        }).join('');
+        const html = `<table>${htmlRows}</table>`;
+
+        return { rowMap, tsv, html, count: selectedCells.length };
+    }
+
     _installSelectionHandlers() {
         const el = this._el;
         if (!el) return;
 
         const getCell = (target) => target.closest('.cell[data-row][data-col]');
+
+        // True only after the pointer moves to a different cell — not on a plain click.
+        // We defer disabling contentEditable until an actual cross-cell drag begins so
+        // that single-click focus and double-click text-selection work naturally.
+        let dragActive = false;
 
         const updateSelection = () => {
             const { startRow, endRow, startCol, endCol } = this._sel;
@@ -414,25 +513,25 @@ export class TableCard {
         };
 
         const clearSelection = () => {
+            dragActive = false;
             this._sel.active = false;
             this._sel.startRow = this._sel.endRow = this._sel.startCol = this._sel.endCol = -1;
             el.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
-            // Restore contenteditable
             el.querySelectorAll('.cell:not(.has-image)').forEach(c => (c.contentEditable = 'true'));
         };
 
         el.addEventListener('mousedown', (e) => {
             const cell = getCell(e.target);
-            if (!cell) return;
-            // Start selection only with primary button
-            if (e.button !== 0) return;
+            if (!cell || e.button !== 0) return;
 
+            dragActive = false;
             this._sel.active = true;
             this._sel.startRow = this._sel.endRow = parseInt(cell.dataset.row);
             this._sel.startCol = this._sel.endCol = parseInt(cell.dataset.col);
 
-            // Disable contenteditable on all cells to prevent text-selection fighting
-            el.querySelectorAll('.cell').forEach(c => (c.contentEditable = 'false'));
+            // Do NOT disable contentEditable here — that would break single-click
+            // focus and double-click text selection. We only disable it if the user
+            // actually drags across multiple cells (handled in mousemove below).
         }, { capture: false });
 
         el.addEventListener('mousemove', (e) => {
@@ -442,6 +541,12 @@ export class TableCard {
             const r = parseInt(cell.dataset.row);
             const c = parseInt(cell.dataset.col);
             if (r !== this._sel.endRow || c !== this._sel.endCol) {
+                if (!dragActive) {
+                    // Cross-cell drag confirmed — now disable contentEditable to
+                    // prevent text-cursor fighting with multi-cell selection.
+                    dragActive = true;
+                    el.querySelectorAll('.cell').forEach(c => (c.contentEditable = 'false'));
+                }
                 this._sel.endRow = r;
                 this._sel.endCol = c;
                 updateSelection();
@@ -450,51 +555,73 @@ export class TableCard {
 
         const finishSelection = (e) => {
             if (!this._sel.active) return;
-            const cell = getCell(e.target);
 
-            // If start === end (single cell click), clear and restore edit mode
-            const singleCell = this._sel.startRow === this._sel.endRow
-                && this._sel.startCol === this._sel.endCol;
-
-            if (singleCell) {
+            if (!dragActive) {
+                // Plain click — clear any leftover multi-cell highlight and let the
+                // browser handle focus naturally (contentEditable was never disabled).
                 clearSelection();
-                // Re-focus the clicked cell for editing
-                if (cell && !cell.classList.contains('has-image')) {
-                    cell.contentEditable = 'true';
-                    cell.focus();
-                }
             } else {
+                // End of cross-cell drag — keep visual selection, restore editing.
+                dragActive = false;
                 this._sel.active = false;
-                // Keep selection highlighted but restore edit mode to individual cells
                 el.querySelectorAll('.cell:not(.has-image)').forEach(c => (c.contentEditable = 'true'));
             }
         };
 
         el.addEventListener('mouseup', finishSelection);
 
-        // Ctrl/Cmd+C copies selected cells as TSV
+        // Ctrl/Cmd+C copies selected cells as HTML table + TSV fallback
+        // Ctrl/Cmd+X copies then clears all selected cells
         document.addEventListener('keydown', async (e) => {
             const selected = el.querySelectorAll('.cell-selected');
             if (!selected.length) return;
 
             if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
                 e.preventDefault();
-                // Gather into a 2D map
-                const rowMap = new Map();
-                selected.forEach(c => {
-                    const r = parseInt(c.dataset.row);
-                    const col = parseInt(c.dataset.col);
-                    if (!rowMap.has(r)) rowMap.set(r, new Map());
-                    const val = this._table.data?.[r]?.[col] ?? '';
-                    rowMap.get(r).set(col, isImageCell(val) ? '[image]' : val);
-                });
-                const rows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
-                const tsv = rows.map(([, colMap]) => {
-                    const cols = [...colMap.entries()].sort((a, b) => a[0] - b[0]);
-                    return cols.map(([, v]) => v).join('\t');
-                }).join('\n');
-                await navigator.clipboard.writeText(tsv);
-                showToast(`copied ${selected.length} cell${selected.length > 1 ? 's' : ''}`, 'success');
+                const { tsv, html, count } = this._buildSelectionPayload(selected);
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html':  new Blob([html], { type: 'text/html' }),
+                        'text/plain': new Blob([tsv],  { type: 'text/plain' }),
+                    })
+                ]);
+                showToast(`copied ${count} cell${count > 1 ? 's' : ''}`, 'success');
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+                e.preventDefault();
+                const { rowMap, tsv, html, count } = this._buildSelectionPayload(selected);
+                try {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'text/html':  new Blob([html], { type: 'text/html' }),
+                            'text/plain': new Blob([tsv],  { type: 'text/plain' }),
+                        })
+                    ]);
+                } catch {
+                    showToast('cut failed', 'error');
+                    return;
+                }
+                // Clear every selected cell
+                for (const [r, colMap] of rowMap) {
+                    for (const [col, val] of colMap) {
+                        if (isImageCell(val)) {
+                            await window.electron.images.delete(getImagePath(val)).catch(() => {});
+                        }
+                        if (this._table.data[r]) this._table.data[r][col] = '';
+                        const cellEl = el.querySelector(`.cell[data-row="${r}"][data-col="${col}"]`);
+                        if (cellEl) {
+                            if (cellEl.classList.contains('has-image')) {
+                                this._renderCellContent(cellEl, '');
+                            } else {
+                                cellEl.textContent = '';
+                            }
+                        }
+                        this._cb.onCellUpdate?.(this._table._id, r, col, '');
+                    }
+                }
+                clearSelection();
+                showToast(`cut ${count} cell${count > 1 ? 's' : ''}`, 'success');
             }
 
             if (e.key === 'Escape') {

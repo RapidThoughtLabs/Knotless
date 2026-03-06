@@ -59,19 +59,23 @@ export class Topbar {
             </div>
 
             ${isWindows ? `
-            <div class="windows-controls">
-                <button class="win-btn win-minimize" id="win-min" title="Minimize">
-                    <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
-                </button>
-                <button class="win-btn win-maximize" id="win-max" title="Maximize">
-                    <svg width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
-                </button>
-                <button class="win-btn win-close" id="win-close" title="Close">
-                    <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2"/></svg>
-                </button>
+            <div class="windows-controls" id="windows-controls">
+                <div class="win-controls-inner">
+                    <button class="win-btn win-minimize" id="win-min" title="Minimize">
+                        <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+                    </button>
+                    <button class="win-btn win-maximize" id="win-max" title="Maximize">
+                        <svg width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                    </button>
+                    <button class="win-btn win-close" id="win-close" title="Close">
+                        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2"/></svg>
+                    </button>
+                </div>
             </div>
             ` : ''}
         `;
+
+        if (isWindows) el.classList.add('win-topbar');
 
         this._el = el;
         this._bind();
@@ -146,6 +150,15 @@ export class Topbar {
             el.querySelector('#win-min')?.addEventListener('click', () => window.electron.windowControls.minimize());
             el.querySelector('#win-max')?.addEventListener('click', () => window.electron.windowControls.maximize());
             el.querySelector('#win-close')?.addEventListener('click', () => window.electron.windowControls.close());
+
+            // Swap maximize icon when window is maximized/restored
+            window.electron.onWindowMaximized?.((isMax) => {
+                const svg = el.querySelector('#win-max svg');
+                if (!svg) return;
+                svg.innerHTML = isMax
+                    ? '<path d="M2 0H10V8M0 2H8V10H0V2Z" stroke="currentColor" fill="none" stroke-width="1.2"/>'
+                    : '<rect width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"/>';
+            });
         }
     }
 }

@@ -29,6 +29,7 @@
     --text: #e8e8e0;
     --text-mid: #888880;
     --text-dim: #4e4e48;
+    --text-edit: #c0c0b8;
 
     /* macOS traffic light colours — fixed, not themed */
     --tl-red: #ff5f57;
@@ -61,6 +62,7 @@
     --text: #1a1a16;
     --text-mid: #6a6a60;
     --text-dim: #aaa89e;
+    --text-edit: #6a6a60;
     --accent-txt: #0a0a0a;
 }
 

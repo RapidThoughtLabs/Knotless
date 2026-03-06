@@ -45,5 +45,8 @@ contextBridge.exposeInMainWorld('electron', {
         update: (dotPath, value) => ipcRenderer.invoke('settings:update', dotPath, value),
         reset: () => ipcRenderer.invoke('settings:reset'),
     },
+
+    // App info (version + OS)
+    getAppInfo: () => ipcRenderer.invoke('app:info'),
 });
 

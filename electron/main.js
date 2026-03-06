@@ -1,8 +1,10 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import pkg from 'electron';
+const { app, BrowserWindow, ipcMain } = pkg;
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import os from 'os';
 import DatabaseService from '../src/services/database.js';
 import SettingsService from '../src/services/settings.js';
 
@@ -179,6 +181,12 @@ ipcMain.handle('image:delete', async (_, filePath) => {
   }
 });
 
+// App info IPC handler
+ipcMain.handle('app:info', () => ({
+  version: app.getVersion(),
+  osVersion: os.version(),
+}));
+
 // IPC handler to convert file path to file:// URL (for cross-platform compatibility)
 ipcMain.handle('path-to-file-url', async (_, filePath) => {
   try {
@@ -196,8 +204,9 @@ ipcMain.handle('path-to-file-url', async (_, filePath) => {
 // App lifecycle
 app.whenReady().then(() => {
   // Initialize database service
-  dbService = new DatabaseService();
-  settingsService = new SettingsService();
+  const userData = app.getPath('userData');
+  dbService = new DatabaseService(userData);
+  settingsService = new SettingsService(userData);
 
   // Create images directory if it doesn't exist
   const imagesDir = path.join(app.getPath('userData'), 'images');

@@ -12,6 +12,14 @@
 import { RTLThemeEngine, RTL_ACCENT_SWATCH_COLORS } from '../rtl-theme/rtl-theme-engine.js';
 import { showToast, setToastPosition } from './toast.js';
 
+/**
+ * Apply an animation level globally by setting data-anim on <html>.
+ * @param {'full'|'reduced'|'off'} level
+ */
+export function applyAnimationLevel(level = 'full') {
+    document.documentElement.dataset.anim = level;
+}
+
 export class SettingsModal {
     /**
      * @param {RTLThemeEngine} themeEngine - shared instance
@@ -32,6 +40,30 @@ export class SettingsModal {
         this._el.innerHTML = this._buildHTML();
         document.body.appendChild(this._el);
         this._bind();
+        this._populateFooter();
+    }
+
+    async _populateFooter() {
+        try {
+            const info = await window.electron?.getAppInfo?.();
+            const platform = window.electron?.platform;
+
+            let osLabel = info?.osVersion ?? '';
+            if (osLabel.startsWith('Windows ')) {
+                osLabel = osLabel.split(' ').slice(0, 2).join(' ');
+            } else if (!osLabel) {
+                osLabel = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[platform] ?? '';
+            }
+
+            const versionLabel = info?.version ? `v${info.version}` : 'v—';
+
+            const osEl = this._el?.querySelector('#settings-os-info');
+            const verEl = this._el?.querySelector('#settings-app-version');
+            if (osEl) osEl.textContent = osLabel ? `${osLabel} ` : '';
+            if (verEl) verEl.textContent = versionLabel;
+        } catch {
+            // non-critical
+        }
     }
 
     open() {
@@ -56,6 +88,7 @@ export class SettingsModal {
 
         return `
         <div class="settings-modal" id="settings-panel">
+          <div class="settings-body">
             <!-- Sidebar -->
             <div class="settings-sidebar">
                 <div class="settings-logo"><span>RTL://</span>settings</div>
@@ -106,6 +139,19 @@ export class SettingsModal {
                             <div class="seg-btn" data-toast-pos="bottom-right">corner</div>
                         </div>
                     </div>
+                    ${window.electron?.isMac ? '' : `
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">animations</div>
+                            <div class="setting-sub">ui motion level (recommended: off on windows)</div>
+                        </div>
+                        <div class="seg-ctrl" id="anim-seg">
+                            <div class="seg-btn active" data-anim-level="full">full</div>
+                            <div class="seg-btn" data-anim-level="reduced">reduced</div>
+                            <div class="seg-btn" data-anim-level="off">off</div>
+                        </div>
+                    </div>
+                    `}
                 </div>
 
                 <!-- THEME -->
@@ -188,6 +234,17 @@ export class SettingsModal {
                 </div>
 
             </div>
+          </div>
+          <div class="app-footer">
+            <div class="footer-brand"><span>RTL://</span>noteless</div>
+            <div class="footer-end">
+              <div class="footer-status">
+                <span id="settings-os-info"></span>
+                <div class="status-dot"></div>
+                <span id="settings-app-version">v—</span>
+              </div>
+            </div>
+          </div>
         </div>
         `;
     }
@@ -274,6 +331,19 @@ export class SettingsModal {
             showToast('notification position set', 'info');
         });
 
+        // Animations level segmented control (Windows/Linux only)
+        if (!window.electron?.isMac) {
+            el.querySelector('#anim-seg')?.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-anim-level]');
+                if (!btn) return;
+                const level = btn.dataset.animLevel;
+                el.querySelectorAll('#anim-seg .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+                applyAnimationLevel(level);
+                await this._settings.update('general.animations', level);
+                showToast(`animations → ${level}`, 'info');
+            });
+        }
+
         // Theme reset
         el.querySelector('#theme-reset-btn')?.addEventListener('click', async () => {
             await this._theme.reset();
@@ -341,6 +411,15 @@ export class SettingsModal {
                 b.classList.toggle('active', b.dataset.toastPos === toastPos);
             });
             setToastPosition(toastPos);
+
+            // Sync and apply animation level (Windows/Linux only)
+            if (!window.electron?.isMac) {
+                const animLevel = saved.general?.animations ?? 'full';
+                el.querySelectorAll('#anim-seg .seg-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.animLevel === animLevel);
+                });
+                applyAnimationLevel(animLevel);
+            }
         }
     }
 }
