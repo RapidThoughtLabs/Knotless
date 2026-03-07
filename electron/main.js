@@ -1,5 +1,5 @@
 import pkg from 'electron';
-const { app, BrowserWindow, ipcMain } = pkg;
+const { app, BrowserWindow, ipcMain, shell } = pkg;
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import fs from 'fs';
@@ -27,6 +27,7 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    ...(isWindows && { icon: path.join(__dirname, '../build/icon.ico') }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -181,11 +182,80 @@ ipcMain.handle('image:delete', async (_, filePath) => {
   }
 });
 
+// ── OS label helper ───────────────────────────────────────────────────────────
+// Returns a clean, human-readable OS string for the settings footer.
+//   macOS   → "macOS 16 Tahoe"          (version number + marketing name)
+//   Windows → "Windows 11 - 22621"      (edition - build number)
+//   Linux   → "Ubuntu 22.04"            (reads /etc/os-release PRETTY_NAME)
+function getOsLabel() {
+  const platform = process.platform;
+
+  if (platform === 'darwin') {
+    // os.release() returns Darwin kernel version e.g. "25.4.0"
+    // macOS version = Darwin major - 9  (for Darwin >= 20, i.e. macOS 11+)
+    // Darwin 18 → 10.14, Darwin 19 → 10.15, Darwin 20 → 11, …, Darwin 25 → 16
+    const major = parseInt((os.release() || '0').split('.')[0], 10);
+    const macNames = {
+      26: 'Tahoe',      // Darwin 26 → macOS 17 (future-proof)
+      25: 'Tahoe',      // Darwin 25 → macOS 16 Tahoe
+      24: 'Sequoia',    // Darwin 24 → macOS 15 Sequoia
+      23: 'Sonoma',     // Darwin 23 → macOS 14 Sonoma
+      22: 'Ventura',    // Darwin 22 → macOS 13 Ventura
+      21: 'Monterey',   // Darwin 21 → macOS 12 Monterey
+      20: 'Big Sur',    // Darwin 20 → macOS 11 Big Sur
+      19: 'Catalina',   // Darwin 19 → macOS 10.15 Catalina
+      18: 'Mojave',     // Darwin 18 → macOS 10.14 Mojave
+    };
+    const macVersion = major >= 20 ? (major - 9) : `10.${major - 4}`;
+    const name = macNames[major];
+    return name ? `macOS ${macVersion} ${name}` : `macOS ${macVersion}`;
+  }
+
+  if (platform === 'win32') {
+    // os.release() returns "10.0.22621" style kernel version
+    const parts = (os.release() || '').split('.');
+    const buildNum = parseInt(parts[2] || '0', 10);
+    // Windows 11 starts at build 22000
+    const winVersion = buildNum >= 22000 ? '11' : '10';
+    return `Windows ${winVersion} - ${buildNum}`;
+  }
+
+  if (platform === 'linux') {
+    try {
+      const osRelease = fs.readFileSync('/etc/os-release', 'utf-8');
+      const match = osRelease.match(/PRETTY_NAME="?([^"\n]+)"?/);
+      if (match) return match[1];
+      // Fallback: NAME + VERSION_ID
+      const nameMatch = osRelease.match(/^NAME="?([^"\n]+)"?/m);
+      const versionMatch = osRelease.match(/^VERSION_ID="?([^"\n]+)"?/m);
+      if (nameMatch) {
+        return versionMatch ? `${nameMatch[1]} ${versionMatch[1]}` : nameMatch[1];
+      }
+    } catch { /* /etc/os-release not available */ }
+    return `Linux ${os.release()}`;
+  }
+
+  // Fallback for any other platform
+  return os.version ? os.version() : process.platform;
+}
+
 // App info IPC handler
 ipcMain.handle('app:info', () => ({
   version: app.getVersion(),
-  osVersion: os.version(),
+  osVersion: getOsLabel(),
 }));
+
+// DB path IPC handler — used by footer path-copy feature
+ipcMain.handle('app:dbPath', () => {
+  return path.join(app.getPath('userData'), 'tables.db');
+});
+
+// Open external URL in default browser — safe, validates https/http only
+ipcMain.handle('open-external', async (_, url) => {
+  if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+    await shell.openExternal(url);
+  }
+});
 
 // IPC handler to convert file path to file:// URL (for cross-platform compatibility)
 ipcMain.handle('path-to-file-url', async (_, filePath) => {

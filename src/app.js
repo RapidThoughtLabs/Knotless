@@ -12,7 +12,7 @@ import { AppFooter } from './components/app-footer.js';
 import { TableCard } from './components/table-card.js';
 import { CellContextMenu } from './components/context-menu.js';
 import { TableOptionsMenu } from './components/table-options-menu.js';
-import { SettingsModal, applyAnimationLevel } from './components/settings-modal.js';
+import { SettingsModal, applyAnimationLevel, applyFontSize } from './components/settings-modal.js';
 import { showAddTableModal, showConfirm } from './components/modals.js';
 import { showToast, setToastPosition } from './components/toast.js';
 
@@ -51,11 +51,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     await themeEngine.init();
 
-    // 1.5 — Apply saved toast position and animation level before any toast fires
+    // 1.5 — Apply saved toast position, animation level, and font size before any toast fires
     try {
         const savedSettings = await settings()?.get();
         const toastPos = savedSettings?.general?.toastPosition ?? 'titlebar';
         setToastPosition(toastPos);
+        // Font size
+        const fontSize = savedSettings?.general?.fontSize ?? 13;
+        applyFontSize(fontSize);
         // Mac has its own native animation system — never touch it
         if (!window.electron?.isMac) {
             const animLevel = savedSettings?.general?.animations ?? 'full';

@@ -1,7 +1,7 @@
 {
-    "name": "noteless",
-    "version": "1.0.0",
-    "description": "A note-taking application with table-based notes",
+    "name": "knotless",
+    "version": "0.1.0",
+    "description": "Knotless — rapid table-based notes by Rapid Thought Labs",
     "main": "electron/main.js",
     "type": "module",
     "scripts": {
@@ -21,8 +21,8 @@
     "author": "",
     "license": "MIT",
     "build": {
-        "appId": "com.noteless.app",
-        "productName": "NoteLess",
+        "appId": "com.rapidthoughtlabs.knotless",
+        "productName": "Knotless",
         "directories": {
             "output": "dist"
         },

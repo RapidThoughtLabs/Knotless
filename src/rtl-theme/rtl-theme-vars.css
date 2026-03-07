@@ -1,18 +1,18 @@
 /*
  * RTL Theme Variables — v1
  * Rapid Thought Labs shared design token system
- * Used by: noteless, and future RTL products
+ * Used by: knotless, and future RTL products
  *
  * Apply to <html> tag:  data-mode="dark|light|system"  data-accent="lime|red|pink|purple|yellow|blue|cyan|orange"
  */
 
 /* ══════════════════════════════════════════════════
-   DARK MODE (default)  accent = lime
+   DARK MODE (default)  accent = purple
 ══════════════════════════════════════════════════ */
 :root {
-    --accent-h: 86;
-    --accent-s: 84%;
-    --accent-l: 62%;
+    --accent-h: 270;
+    --accent-s: 70%;
+    --accent-l: 68%;
     --accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
     --accent-dim: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.12);
     --accent-txt: #0a0a0a;
@@ -21,15 +21,15 @@
     --surface: #141414;
     --surface2: #1c1c1c;
     --footer-bg: #1a1a1a;
-    --border: #2e2e2e;
-    --border2: #383838;
+    --border: #242424;      /* dark-mode: toned down so lines don't fight content */
+    --border2: #303030;
     --cell-bg: #111111;
-    --cell-hover: #171717;
+    --cell-hover: #181818;
 
     --text: #e8e8e0;
-    --text-mid: #888880;
-    --text-dim: #4e4e48;
-    --text-edit: #c0c0b8;
+    --text-mid: #aaa8a0;    /* was #888880 — brighter secondary text for legibility */
+    --text-dim: #787870;    /* was #4e4e48 — much brighter, readable on near-black */
+    --text-edit: #d8d8d0;   /* was #c0c0b8 — brighter editing/focused text */
 
     /* macOS traffic light colours — fixed, not themed */
     --tl-red: #ff5f57;
@@ -55,14 +55,14 @@
     --surface: #e8e4de;
     --surface2: #dedad4;
     --footer-bg: #e2ddd7;
-    --border: #c8c4bc;
-    --border2: #b8b4ac;
+    --border: #b4b0a8;      /* light-mode: darker lines for proper contrast */
+    --border2: #a4a09a;
     --cell-bg: #ebe8e2;
     --cell-hover: #e4e0da;
-    --text: #1a1a16;
-    --text-mid: #6a6a60;
-    --text-dim: #aaa89e;
-    --text-edit: #6a6a60;
+    --text: #121210;        /* near-black for max contrast */
+    --text-mid: #484840;    /* was #6a6a60 — much darker, legible on cream */
+    --text-dim: #6e6c66;    /* was #aaa89e — significantly darker */
+    --text-edit: #282824;   /* was #6a6a60 — darker editing text */
     --accent-txt: #0a0a0a;
 }
 
@@ -117,6 +117,44 @@
     --accent-s: 90%;
     --accent-l: 58%;
     --accent-txt: #fff;
+}
+
+/* ══════════════════════════════════════════════════
+   LIGHT-MODE ACCENT OVERRIDES
+   Darken bright accents so accent-coloured text
+   (code cells, badges, links) stays readable on
+   the cream background (#f0ede8).
+══════════════════════════════════════════════════ */
+[data-mode="light"][data-accent="lime"] {
+    --accent-l: 34%;       /* 62% → 34%  vivid green, readable on cream */
+}
+
+[data-mode="light"][data-accent="yellow"] {
+    --accent-l: 36%;       /* 60% → 36%  amber/gold, no more invisible text */
+}
+
+[data-mode="light"][data-accent="purple"] {
+    --accent-l: 42%;       /* 68% → 42%  deep violet instead of washed lavender */
+}
+
+[data-mode="light"][data-accent="cyan"] {
+    --accent-l: 34%;       /* 52% → 34%  teal, punchy on light bg */
+}
+
+[data-mode="light"][data-accent="pink"] {
+    --accent-l: 46%;       /* 68% → 46%  richer magenta */
+}
+
+[data-mode="light"][data-accent="blue"] {
+    --accent-l: 42%;       /* 62% → 42%  strong blue */
+}
+
+[data-mode="light"][data-accent="orange"] {
+    --accent-l: 42%;       /* 58% → 42%  warm burnt orange */
+}
+
+[data-mode="light"][data-accent="red"] {
+    --accent-l: 44%;       /* 62% → 44%  deep crimson */
 }
 
 /* ══════════════════════════════════════════════════

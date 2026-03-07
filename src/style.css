@@ -24,7 +24,7 @@ html {
 body {
   background: var(--bg);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   line-height: 1;
   height: 100%;
   display: flex;
@@ -96,21 +96,27 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 6px;
+  padding: 4px 8px;
   background: transparent;
   border: none;
   color: var(--accent);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: text-shadow 0.22s ease, filter 0.18s ease, background 0.18s ease, color 0.18s ease;
   letter-spacing: 0.03em;
   -webkit-app-region: no-drag;
   font-family: 'JetBrains Mono', monospace;
+  border-radius: 4px;
 }
 
+/* Dark mode: text itself glows on hover */
 .filter-btn:hover {
-  opacity: 0.75;
+  filter: brightness(1.2);
+  text-shadow:
+    0 0 8px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
+    0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5),
+    0 0 40px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.2);
 }
 
 .filter-chevron {
@@ -334,7 +340,7 @@ body {
 }
 
 .empty-title {
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   color: var(--text-dim);
   letter-spacing: 0.08em;
 }
@@ -405,18 +411,44 @@ body {
   border-bottom: none;
 }
 
-/* Gap mode: add space between cells */
+/* ── Gap mode ───────────────────────────────────────────────────────────────
+   Cells get a subtle accent-tinted background.
+   The "gaps" between cells = app background color (--bg), so dark mode shows
+   jet-black gaps, light mode shows paper-white gaps.
+   Border lines are removed — the gaps themselves act as separators.
+   Gap thickness = 3px for a clearly defined visual partition.
+────────────────────────────────────────────────────────────────────────── */
+.gap-mode .table-grid {
+  background: var(--bg);
+  border-bottom-color: var(--bg);
+}
+
 .gap-mode .table-row {
-  gap: 2px;
-  background: var(--border);
+  gap: 3px;
+  background: var(--bg);
+  border-bottom: none;
+}
+
+.gap-mode .table-row:last-child {
+  border-bottom: none;
 }
 
 .gap-mode .cell {
   border-right: none;
+  background: var(--surface2);   /* slightly lifted cell bg in gap mode */
+}
+
+.gap-mode .cell:hover {
+  background: var(--cell-hover);
 }
 
 .gap-mode .cell-check {
   border-right: none;
+  background: var(--surface2);
+}
+
+.gap-mode .cell-check:hover {
+  background: var(--cell-hover);
 }
 
 /* ── Cells ─────────────────────────────────────────────────────────────────── */
@@ -424,7 +456,7 @@ body {
   background: var(--cell-bg);
   border-right: 1px solid var(--border);
   padding: 9px 12px;
-  font-size: 12px;
+  font-size: var(--font-size, 13px);
   color: var(--text);
   outline: none;
   min-height: 36px;
@@ -585,7 +617,7 @@ body {
   border: none;
   outline: none;
   color: var(--text-mid);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) - 2px);
   letter-spacing: 0.06em;
   padding: 2px 4px;
   border-radius: 3px;
@@ -1200,7 +1232,8 @@ body {
   color: var(--text);
 }
 
-#default-cols-val {
+#default-cols-val,
+#font-size-val {
   color: var(--accent);
   min-width: 12px;
   text-align: center;
@@ -1246,10 +1279,28 @@ body {
   font-size: 10px;
   letter-spacing: 0.12em;
   color: var(--text-dim);
+  white-space: nowrap;
 }
 
-.footer-brand span {
+/* rtl:// — clickable, text glow on hover (matches filter-btn pattern) */
+.footer-brand-link {
   color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  transition: text-shadow 0.22s ease, filter 0.18s ease, background 0.18s ease, color 0.18s ease;
+  display: inline-block;
+  font-weight: 700;
+}
+
+/* Dark mode: text itself glows */
+.footer-brand-link:hover {
+  filter: brightness(1.2);
+  text-shadow:
+    0 0 8px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
+    0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5),
+    0 0 40px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.2);
 }
 
 .footer-info {
@@ -1267,8 +1318,29 @@ body {
 
 .footer-end {
   margin-left: auto;
+  position: relative;
 }
 
+/* ── Footer status: flat inline [● saved · /path/to/db] ───────────────────
+   Always visible. Click copies full DB path to clipboard.
+────────────────────────────────────────────────────────────────────────── */
+.footer-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.footer-status-wrap:hover {
+  color: var(--text-mid);
+}
+
+/* Used inside settings footer (no path, keep simple) */
 .footer-status {
   display: flex;
   align-items: center;
@@ -1278,29 +1350,65 @@ body {
   letter-spacing: 0.08em;
 }
 
+/* Separator dot between saved and path */
+.status-sep {
+  color: var(--border2);
+}
+
+/* DB file path — always visible, truncated from left to show filename end */
+.status-path {
+  font-size: 9px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;        /* truncate from left → show filename end */
+  unicode-bidi: plaintext;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.footer-status-wrap:hover .status-path {
+  opacity: 1;
+}
+
+/* ── Status dot — slow breathing glow ──────────────────────────────────────
+   4-second ease-in-out cycle: dim glow → bright glow → dim.
+   The saving override replaces with faster yellow pulse.
+────────────────────────────────────────────────────────────────────────── */
 .status-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  opacity: 0.8;
+  flex-shrink: 0;
+  animation: breathe 4s ease-in-out infinite;
 }
 
 .status-dot.saving {
   background: var(--tl-yellow);
-  animation: pulse 0.8s infinite;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.90;
+    box-shadow:
+      0 0 4px 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.55),
+      0 0 10px 2px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.20);
+  }
+  50% {
+    opacity: 0.28;
+    box-shadow:
+      0 0 2px 0px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.10);
+  }
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 0.8;
-  }
-
-  50% {
-    opacity: 0.3;
-  }
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 0.25; }
 }
 
 /* ── Toast System ──────────────────────────────────────────────────────────── */
@@ -1449,6 +1557,77 @@ body {
 [data-mode="light"] .toast.error,
 [data-mode="light"] .toast.info {
   background: rgba(240, 237, 232, 0.95);
+}
+
+/* ── Light-mode accent label overrides ────────────────────────────────────────
+   Accent-colored interactive labels look washed-out on the cream background.
+   In light mode we switch them to near-black bold text, but keep the accent
+   glow on hover so the interactive feel is preserved.
+────────────────────────────────────────────────────────────────────────── */
+
+/* Recents / filter button — light mode: black bold text, text-shadow glow on hover (same as dark) */
+[data-mode="light"] .filter-btn {
+  color: var(--text);
+  font-weight: 700;
+}
+
+[data-mode="light"] .filter-btn:hover {
+  color: var(--text);
+  background: transparent;
+  filter: none;
+  box-shadow: none;
+  text-shadow:
+    0 0 8px  hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
+    0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5),
+    0 0 40px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
+}
+
+/* rtl:// brand link — light mode: black bold text, text-shadow glow on hover (same as dark) */
+[data-mode="light"] .footer-brand-link {
+  color: var(--text);
+  font-weight: 700;
+}
+
+[data-mode="light"] .footer-brand-link:hover {
+  color: var(--text);
+  background: transparent;
+  filter: none;
+  box-shadow: none;
+  text-shadow:
+    0 0 8px  hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
+    0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5),
+    0 0 40px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
+}
+
+/* Footer filter label */
+[data-mode="light"] #footer-filter {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Pin badge on table cards */
+[data-mode="light"] .pin-badge {
+  color: var(--text);
+}
+
+[data-mode="light"] .pin-badge:hover {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Status path + separator — use readable dark colors in light mode */
+[data-mode="light"] .status-path {
+  color: var(--text-mid);
+}
+
+[data-mode="light"] .status-sep {
+  color: var(--border2);
+}
+
+/* Settings sidebar logo rtl:// span */
+[data-mode="light"] .settings-logo span {
+  color: var(--text);
+  font-weight: 700;
 }
 
 /* ── Respect OS-level "reduce motion" preference (Windows Ease of Access) ───── */

@@ -20,9 +20,9 @@ const RTL_MODES = ['dark', 'light', 'system'];
 const DEFAULT_CONFIG = {
     rtl_theme_version: 1,
     mode: 'dark',
-    accent: 'lime',
+    accent: 'purple',
     gridMode: 'lines',
-    product: 'noteless',
+    product: 'knotless',
 };
 
 export class RTLThemeEngine {

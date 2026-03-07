@@ -2,11 +2,10 @@
  * Settings Modal — RTL Knotless V2
  *
  * Overlay with sidebar nav + content panels:
- *   - general (launch on startup, default columns)
- *   - theme (mode toggle, accent picker, grid mode, reset)
- *   - security (lock on sleep, auto-lock, clear on exit)
+ *   - general (launch on startup, default columns, toast position, animations)
+ *   - theme   (mode toggle, accent picker, grid mode, reset)
  *
- * Ref: V2 HTML lines 337-462, 865-956
+ * Security panel intentionally omitted — ships in a future version.
  */
 
 import { RTLThemeEngine, RTL_ACCENT_SWATCH_COLORS } from '../rtl-theme/rtl-theme-engine.js';
@@ -20,16 +19,27 @@ export function applyAnimationLevel(level = 'full') {
     document.documentElement.dataset.anim = level;
 }
 
+/**
+ * Apply a font size globally via the --font-size CSS variable on <html>.
+ * Also sets body font-size directly for immediate cascade.
+ * @param {number} size - px value (11–17, default 13)
+ */
+export function applyFontSize(size = 13) {
+    document.documentElement.style.setProperty('--font-size', `${size}px`);
+    // Set directly on body too so elements using `inherit` pick it up instantly
+    if (document.body) document.body.style.fontSize = `${size}px`;
+}
+
 export class SettingsModal {
     /**
      * @param {RTLThemeEngine} themeEngine - shared instance
      * @param {Object} settingsApi - { get, update, reset } via window.electron.settings
      */
     constructor(themeEngine, settingsApi) {
-        this._theme = themeEngine;
+        this._theme    = themeEngine;
         this._settings = settingsApi;
-        this._el = null;
-        this._visible = false;
+        this._el       = null;
+        this._visible  = false;
         this._activeSection = 'general';
     }
 
@@ -46,20 +56,12 @@ export class SettingsModal {
     async _populateFooter() {
         try {
             const info = await window.electron?.getAppInfo?.();
-            const platform = window.electron?.platform;
-
-            let osLabel = info?.osVersion ?? '';
-            if (osLabel.startsWith('Windows ')) {
-                osLabel = osLabel.split(' ').slice(0, 2).join(' ');
-            } else if (!osLabel) {
-                osLabel = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[platform] ?? '';
-            }
-
+            const osLabel      = info?.osVersion ?? '';
             const versionLabel = info?.version ? `v${info.version}` : 'v—';
 
-            const osEl = this._el?.querySelector('#settings-os-info');
+            const osEl  = this._el?.querySelector('#settings-os-info');
             const verEl = this._el?.querySelector('#settings-app-version');
-            if (osEl) osEl.textContent = osLabel ? `${osLabel} ` : '';
+            if (osEl)  osEl.textContent  = osLabel ? `${osLabel} ` : '';
             if (verEl) verEl.textContent = versionLabel;
         } catch {
             // non-critical
@@ -83,7 +85,7 @@ export class SettingsModal {
     }
 
     _buildHTML() {
-        const cfg = this._theme.getConfig();
+        const cfg     = this._theme.getConfig();
         const accents = Object.entries(RTL_ACCENT_SWATCH_COLORS);
 
         return `
@@ -91,15 +93,12 @@ export class SettingsModal {
           <div class="settings-body">
             <!-- Sidebar -->
             <div class="settings-sidebar">
-                <div class="settings-logo"><span>RTL://</span>settings</div>
+                <div class="settings-logo"><span>rtl://</span>settings</div>
                 <div class="settings-nav-item active" data-section="general">
                     <span class="nav-icon">⚙</span> general
                 </div>
                 <div class="settings-nav-item" data-section="theme">
                     <span class="nav-icon">◈</span> theme
-                </div>
-                <div class="settings-nav-item" data-section="security">
-                    <span class="nav-icon">⬡</span> security
                 </div>
             </div>
 
@@ -112,7 +111,7 @@ export class SettingsModal {
                     <div class="setting-row">
                         <div>
                             <div class="setting-label">launch on startup</div>
-                            <div class="setting-sub">open noteless when you log in</div>
+                            <div class="setting-sub">open knotless when you log in</div>
                         </div>
                         <div class="toggle" id="toggle-startup"><span></span></div>
                     </div>
@@ -137,6 +136,17 @@ export class SettingsModal {
                             <div class="seg-btn" data-toast-pos="top-right">top right</div>
                             <div class="seg-btn" data-toast-pos="bottom-center">bottom</div>
                             <div class="seg-btn" data-toast-pos="bottom-right">corner</div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">font size</div>
+                            <div class="setting-sub">adjust text size across the app</div>
+                        </div>
+                        <div class="col-stepper">
+                            <span class="col-step-btn" data-font-step="-1">−</span>
+                            <span id="font-size-val">13</span>
+                            <span class="col-step-btn" data-font-step="1">+</span>
                         </div>
                     </div>
                     ${window.electron?.isMac ? '' : `
@@ -165,8 +175,8 @@ export class SettingsModal {
                             <div class="setting-sub">dark, light, or follow system</div>
                         </div>
                         <div class="seg-ctrl" id="mode-seg">
-                            <div class="seg-btn${cfg.mode === 'dark' ? ' active' : ''}" data-mode="dark">dark</div>
-                            <div class="seg-btn${cfg.mode === 'light' ? ' active' : ''}" data-mode="light">light</div>
+                            <div class="seg-btn${cfg.mode === 'dark'   ? ' active' : ''}" data-mode="dark">dark</div>
+                            <div class="seg-btn${cfg.mode === 'light'  ? ' active' : ''}" data-mode="light">light</div>
                             <div class="seg-btn${cfg.mode === 'system' ? ' active' : ''}" data-mode="system">system</div>
                         </div>
                     </div>
@@ -202,41 +212,13 @@ export class SettingsModal {
                     <button class="btn-reset" id="theme-reset-btn">↺ reset to defaults</button>
                 </div>
 
-                <!-- SECURITY -->
-                <div class="settings-panel-section hidden" id="settings-security">
-                    <div class="settings-section-title">security</div>
-                    <div class="setting-row">
-                        <div>
-                            <div class="setting-label">lock on sleep</div>
-                            <div class="setting-sub">require password after system sleep</div>
-                        </div>
-                        <div class="toggle" id="toggle-lock-sleep"><span></span></div>
-                    </div>
-                    <div class="setting-row">
-                        <div>
-                            <div class="setting-label">auto-lock timeout</div>
-                            <div class="setting-sub">minutes of inactivity before lock</div>
-                        </div>
-                        <div class="seg-ctrl" id="autlock-seg">
-                            <div class="seg-btn active" data-lock="never">never</div>
-                            <div class="seg-btn" data-lock="5">5m</div>
-                            <div class="seg-btn" data-lock="15">15m</div>
-                            <div class="seg-btn" data-lock="30">30m</div>
-                        </div>
-                    </div>
-                    <div class="setting-row">
-                        <div>
-                            <div class="setting-label">clear data on exit</div>
-                            <div class="setting-sub">wipe all data when app closes</div>
-                        </div>
-                        <div class="toggle" id="toggle-clear-exit"><span></span></div>
-                    </div>
-                </div>
-
             </div>
           </div>
+          <!-- Settings footer — reuses app-footer styles -->
           <div class="app-footer">
-            <div class="footer-brand"><span>RTL://</span>noteless</div>
+            <div class="footer-brand">
+                <span class="footer-brand-link" id="settings-rtl-link">rtl://</span>knotless
+            </div>
             <div class="footer-end">
               <div class="footer-status">
                 <span id="settings-os-info"></span>
@@ -262,11 +244,15 @@ export class SettingsModal {
             if (e.key === 'Escape' && this._visible) this.close();
         });
 
+        // rtl:// brand link in settings footer
+        el.querySelector('#settings-rtl-link')?.addEventListener('click', () => {
+            window.electron?.openExternal?.('https://www.rapidthoughtlabs.com');
+        });
+
         // Sidebar nav
         el.querySelectorAll('.settings-nav-item').forEach(item => {
             item.addEventListener('click', () => {
-                const section = item.dataset.section;
-                this._switchSection(section);
+                this._switchSection(item.dataset.section);
             });
         });
 
@@ -331,6 +317,18 @@ export class SettingsModal {
             showToast('notification position set', 'info');
         });
 
+        // Font size stepper
+        el.querySelectorAll('[data-font-step]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const valEl = el.querySelector('#font-size-val');
+                let v = parseInt(valEl.textContent) || 13;
+                v = Math.max(11, Math.min(17, v + parseInt(btn.dataset.fontStep)));
+                valEl.textContent = v;
+                applyFontSize(v);
+                await this._settings.update('general.fontSize', v);
+            });
+        });
+
         // Animations level segmented control (Windows/Linux only)
         if (!window.electron?.isMac) {
             el.querySelector('#anim-seg')?.addEventListener('click', async (e) => {
@@ -348,17 +346,10 @@ export class SettingsModal {
         el.querySelector('#theme-reset-btn')?.addEventListener('click', async () => {
             await this._theme.reset();
             await this._settings.update('theme.mode', 'dark');
-            await this._settings.update('theme.accent', 'lime');
+            await this._settings.update('theme.accent', 'purple');
             await this._settings.update('theme.gridMode', 'lines');
             this._syncFromState();
             showToast('theme reset to defaults', 'info');
-        });
-
-        // Security toggles
-        ['toggle-lock-sleep', 'toggle-clear-exit'].forEach(id => {
-            el.querySelector(`#${id}`)?.addEventListener('click', (e) => {
-                e.currentTarget.classList.toggle('on');
-            });
         });
     }
 
@@ -395,9 +386,7 @@ export class SettingsModal {
 
         // Sync general settings
         let saved = null;
-        try {
-            saved = await this._settings.get();
-        } catch { }
+        try { saved = await this._settings.get(); } catch { }
         if (saved) {
             const colVal = el.querySelector('#default-cols-val');
             if (colVal) colVal.textContent = saved.general?.defaultColumns ?? 3;
@@ -411,6 +400,12 @@ export class SettingsModal {
                 b.classList.toggle('active', b.dataset.toastPos === toastPos);
             });
             setToastPosition(toastPos);
+
+            // Sync and apply font size
+            const fontSize = saved.general?.fontSize ?? 13;
+            const fontValEl = el.querySelector('#font-size-val');
+            if (fontValEl) fontValEl.textContent = fontSize;
+            applyFontSize(fontSize);
 
             // Sync and apply animation level (Windows/Linux only)
             if (!window.electron?.isMac) {

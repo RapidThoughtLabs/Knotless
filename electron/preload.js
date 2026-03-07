@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('electron', {
     windowControls: {
         minimize: () => ipcRenderer.invoke('window-minimize'),
         maximize: () => ipcRenderer.invoke('window-maximize'),
-        close: () => ipcRenderer.invoke('window-close'),
+        close:    () => ipcRenderer.invoke('window-close'),
         isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
     },
 
@@ -21,16 +21,16 @@ contextBridge.exposeInMainWorld('electron', {
 
     // Database methods
     database: {
-        create: (tableData) => ipcRenderer.invoke('db:create', tableData),
-        getAll: () => ipcRenderer.invoke('db:getAll'),
-        getByType: (type) => ipcRenderer.invoke('db:getByType', type),
-        update: (id, updates) => ipcRenderer.invoke('db:update', id, updates),
-        delete: (id) => ipcRenderer.invoke('db:delete', id),
+        create:    (tableData) => ipcRenderer.invoke('db:create', tableData),
+        getAll:    ()          => ipcRenderer.invoke('db:getAll'),
+        getByType: (type)      => ipcRenderer.invoke('db:getByType', type),
+        update:    (id, updates) => ipcRenderer.invoke('db:update', id, updates),
+        delete:    (id)        => ipcRenderer.invoke('db:delete', id),
     },
 
     // Image methods
     images: {
-        save: (buffer) => ipcRenderer.invoke('image:save', buffer),
+        save:   (buffer)   => ipcRenderer.invoke('image:save', buffer),
         delete: (filePath) => ipcRenderer.invoke('image:delete', filePath),
     },
 
@@ -41,12 +41,17 @@ contextBridge.exposeInMainWorld('electron', {
 
     // Settings methods
     settings: {
-        get: () => ipcRenderer.invoke('settings:get'),
-        update: (dotPath, value) => ipcRenderer.invoke('settings:update', dotPath, value),
-        reset: () => ipcRenderer.invoke('settings:reset'),
+        get:    ()                  => ipcRenderer.invoke('settings:get'),
+        update: (dotPath, value)    => ipcRenderer.invoke('settings:update', dotPath, value),
+        reset:  ()                  => ipcRenderer.invoke('settings:reset'),
     },
 
-    // App info (version + OS)
+    // App info (version + OS label)
     getAppInfo: () => ipcRenderer.invoke('app:info'),
-});
 
+    // DB file path (for footer path-copy feature)
+    getDbPath: () => ipcRenderer.invoke('app:dbPath'),
+
+    // Open URL in default system browser (cross-platform)
+    openExternal: (url) => ipcRenderer.invoke('open-external', url),
+});

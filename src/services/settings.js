@@ -8,7 +8,7 @@ const DEFAULT_SETTINGS = {
     },
     theme: {
         mode: 'dark',
-        accent: 'lime',
+        accent: 'purple',
         gridMode: 'lines',
     },
     security: {
