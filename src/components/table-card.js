@@ -18,6 +18,45 @@ const IMG_PREFIX = 'IMG:';
 function isImageCell(val) { return typeof val === 'string' && val.startsWith(IMG_PREFIX); }
 function getImagePath(val) { return val.slice(IMG_PREFIX.length); }
 
+// — File cell detection helpers —
+const FILE_PREFIX = 'FILE:';
+function isFileCell(val) { return typeof val === 'string' && val.startsWith(FILE_PREFIX); }
+function parseFileValue(val) {
+    const raw = val.slice(FILE_PREFIX.length);
+    const [filePath, originalName, sizeStr] = raw.split('|');
+    return {
+        filePath,
+        originalName: originalName || filePath.split('/').pop(),
+        size: parseInt(sizeStr || '0', 10),
+    };
+}
+function buildFileValue(filePath, originalName, size) {
+    return `${FILE_PREFIX}${filePath}|${originalName}|${size}`;
+}
+
+// Extensions whose contents are human-readable text (copy contents on long-press)
+const TEXT_EXTENSIONS = new Set([
+    'txt', 'md', 'json', 'csv', 'xml', 'yaml', 'yml', 'toml',
+    'js', 'ts', 'jsx', 'tsx', 'py', 'rb', 'rs', 'go', 'java',
+    'c', 'cpp', 'h', 'hpp', 'cs', 'swift', 'kt', 'sh', 'bash',
+    'zsh', 'fish', 'ps1', 'bat', 'cmd', 'sql', 'html', 'css',
+    'scss', 'sass', 'less', 'vue', 'svelte', 'lua', 'r', 'php',
+    'pl', 'ex', 'exs', 'hs', 'ml', 'clj', 'elm', 'dart',
+    'env', 'ini', 'cfg', 'conf', 'log', 'gitignore', 'dockerfile',
+]);
+function isTextFile(filename) {
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    return TEXT_EXTENSIONS.has(ext);
+}
+
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 // — HTML escape util for clipboard HTML table —
 function escapeHtml(str) {
     return String(str)
@@ -29,14 +68,121 @@ function escapeHtml(str) {
 
 // — Cell content-type class detection —
 const URL_PATTERN = /^https?:\/\//i;
+const BARE_URL_PATTERN = /^(www\.)\S+\.\S+|^\S+\.(com|net|org|io|dev|app|co|in|uk|edu|gov|me|ai|xyz|info|biz)(\/\S*)?$/i;
 const CODE_PATTERN = /^[`'"!@#\$]{1}|sk-|ghp_|sk-ant/;
 const PATH_PATTERN = /^[~\/\\]|^[A-Z]:\\/;
 
+// Comprehensive set of known shell / CLI commands — first-word Set lookup is
+// O(1) and far more extensible than a regex alternation.
+const SHELL_COMMANDS = new Set([
+    // ── Filesystem ──────────────────────────────────────────────────────────
+    'ls','dir','ll','la','cd','pwd','mkdir','rmdir','rm','cp','mv','ln','touch',
+    'cat','head','tail','less','more','file','stat','du','df','find','locate',
+    'which','whereis','basename','dirname','realpath','readlink','tree',
+    // ── Text processing ─────────────────────────────────────────────────────
+    'grep','egrep','fgrep','rg','sed','awk','cut','sort','uniq','wc','tr',
+    'paste','join','split','diff','patch','comm','tee','xargs','strings',
+    'fmt','fold','column','nl','od','xxd','hexdump',
+    // ── Archive / compression ───────────────────────────────────────────────
+    'tar','zip','unzip','gzip','gunzip','bzip2','bunzip2','xz','unxz',
+    '7z','7za','rar','unrar','zstd',
+    // ── Network ─────────────────────────────────────────────────────────────
+    'curl','wget','ssh','scp','sftp','rsync','ftp','telnet','nc','ncat',
+    'ping','traceroute','tracepath','mtr','nslookup','dig','host','whois',
+    'netstat','ss','ifconfig','ip','iptables','ip6tables','tcpdump','nmap',
+    'lsof','ab','wrk','httpie','http','aria2c',
+    // ── Process / job management ────────────────────────────────────────────
+    'ps','top','htop','btop','kill','killall','pkill','pgrep','nice','renice',
+    'bg','fg','jobs','nohup','screen','tmux','watch','timeout','parallel',
+    // ── System / admin ───────────────────────────────────────────────────────
+    'sudo','su','chmod','chown','chgrp','umask','id','whoami','who','w',
+    'last','uptime','uname','hostname','env','printenv','export','source',
+    'alias','unalias','history','time','date','cal','timedatectl',
+    'shutdown','reboot','halt','mount','umount','fdisk','lsblk','lsusb',
+    'lspci','dmesg','sysctl','cron','crontab','at','systemctl','service',
+    'journalctl','launchctl','pmset','diskutil','say','pbcopy','pbpaste',
+    // ── Shells & scripting ───────────────────────────────────────────────────
+    'bash','sh','zsh','fish','dash','ksh','tcsh','csh','pwsh',
+    'echo','printf','read','test','expr','bc','let','eval',
+    // ── Dev tools — JS/Node ─────────────────────────────────────────────────
+    'node','npm','npx','yarn','pnpm','bun','deno','corepack',
+    // ── Dev tools — Python ──────────────────────────────────────────────────
+    'python','python3','pip','pip3','pipenv','poetry','conda','virtualenv',
+    'pytest','pylint','black','mypy','ruff','uv',
+    // ── Dev tools — Ruby ────────────────────────────────────────────────────
+    'ruby','gem','bundle','bundler','rake','rails','rspec',
+    // ── Dev tools — JVM ─────────────────────────────────────────────────────
+    'java','javac','mvn','gradle','kotlin','kotlinc','scala','sbt','clojure',
+    // ── Dev tools — Go / Rust / C ───────────────────────────────────────────
+    'go','cargo','rustc','rustup','gcc','g++','clang','clang++','cc','make',
+    'cmake','ninja','meson','bazel',
+    // ── Dev tools — Version control ──────────────────────────────────────────
+    'git','gh','hub','tig','svn','hg','fossil',
+    // ── Dev tools — Containers / cloud ──────────────────────────────────────
+    'docker','docker-compose','podman','kubectl','k9s','helm','terraform',
+    'ansible','ansible-playbook','vagrant','packer',
+    'aws','gcloud','az','heroku','fly','wrangler','vercel','netlify',
+    // ── Package managers ────────────────────────────────────────────────────
+    'brew','apt','apt-get','apt-cache','dpkg','yum','dnf','pacman','snap',
+    'flatpak','apk','xbps-install','zypper','emerge','port','nix','nix-env',
+    // ── Editors ─────────────────────────────────────────────────────────────
+    'vim','vi','nvim','emacs','nano','code','subl','atom','open','xdg-open',
+    'mate','gedit','kate','micro',
+    // ── Media / image ────────────────────────────────────────────────────────
+    'ffmpeg','ffprobe','convert','identify','mogrify','magick','exiftool',
+    'yt-dlp','youtube-dl','sox','mpv','vlc','imagemagick',
+    // ── Data / databases ────────────────────────────────────────────────────
+    'jq','yq','xmllint','xq','fx','sqlite3','mysql','psql','mongo',
+    'redis-cli','mongosh','influx','clickhouse',
+    // ── Security / crypto ────────────────────────────────────────────────────
+    'openssl','gpg','gpg2','ssh-keygen','ssh-add','ssh-agent','certbot',
+    'nmap','nikto','john','hashcat',
+    // ── Misc utilities ───────────────────────────────────────────────────────
+    'man','info','tldr','help','type','hash','true','false','yes','seq',
+    'shuf','tput','stty','clear','reset','sleep','wait','exit','logout',
+    'ln','mktemp','mkfifo','tee','dd','sync','strace','ltrace',
+]);
+
+function looksLikeCommand(val) {
+    const t = val.trimStart();
+    // Explicit $ shell prompt prefix (e.g. "$ npm install")
+    if (/^\$\s+\S/.test(t)) return true;
+    // First word must be a known command and followed by a space (not just the word alone)
+    const spaceIdx = t.search(/\s/);
+    if (spaceIdx === -1) return false; // single word with no args → not a command
+    const firstWord = t.slice(0, spaceIdx).toLowerCase().replace(/^\/.*\//, ''); // strip abs path prefix
+    return SHELL_COMMANDS.has(firstWord);
+}
+
+
+/** Detect token/hash/key-looking strings via pattern + Shannon entropy */
+function looksLikeToken(val) {
+    const t = val.trim();
+    // Must be a single continuous string, long enough to be a token
+    if (t.length < 16 || /\s/.test(t)) return false;
+    // Hex hashes (SHA-256, MD5, etc.)
+    if (/^[0-9a-fA-F]{32,}$/.test(t)) return true;
+    // JWT: three dot-separated base64url segments
+    if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t)) return true;
+    // Shannon entropy — tokens/encoded strings have high character randomness
+    const freq = {};
+    for (const ch of t) freq[ch] = (freq[ch] || 0) + 1;
+    const len = t.length;
+    let entropy = 0;
+    for (const count of Object.values(freq)) {
+        const p = count / len;
+        entropy -= p * Math.log2(p);
+    }
+    return entropy > 4.0;
+}
 function cellTypeClass(val) {
     if (!val || !val.trim()) return 'empty';
     if (URL_PATTERN.test(val)) return 'has-url';
+    if (BARE_URL_PATTERN.test(val)) return 'has-url';
+    if (looksLikeCommand(val)) return 'has-command';
     if (CODE_PATTERN.test(val)) return 'has-code';
     if (PATH_PATTERN.test(val)) return 'has-path';
+    if (looksLikeToken(val)) return 'has-code';
     return '';
 }
 
@@ -73,10 +219,11 @@ export class TableCard {
 
     /** Build and return the card element */
     create() {
-        const { _id, columns, data = [], pinned, checklist, checked = [], highlights = {} } = this._table;
+        const { _id, columns, data = [], pinned, checklist, checked = [], highlights = {}, highlight } = this._table;
 
         const el = document.createElement('div');
-        el.className = `table-card${pinned ? ' pinned' : ''}`;
+        const hlClass = highlight ? ` table-${highlight}` : '';
+        el.className = `table-card${pinned ? ' pinned' : ''}${hlClass}`;
         el.dataset.tableId = _id;
 
         // ── Grid ─────────────────────────────────────────────────────────────
@@ -118,7 +265,11 @@ export class TableCard {
             grid.appendChild(rowEl);
         });
 
-        el.appendChild(grid);
+        // ── Wrap grid for collapse animation ──────────────────────────────────
+        const gridWrapper = document.createElement('div');
+        gridWrapper.className = 'table-grid-wrapper';
+        gridWrapper.appendChild(grid);
+        el.appendChild(gridWrapper);
 
         // ── Footer ────────────────────────────────────────────────────────────
         this._footer = new TableFooter(this._table, {
@@ -126,6 +277,7 @@ export class TableCard {
             onAddRow: this._cb.onAddRow,
             onOptions: this._cb.onOptions,
             onMoveUp: this._cb.onMoveUp,
+            onCollapse: () => this._toggleCollapse(),
         });
         el.appendChild(this._footer.create());
 
@@ -133,6 +285,12 @@ export class TableCard {
         if (this._table.cardHeight) {
             el.style.height = `${this._table.cardHeight}px`;
             el.classList.add('resizable');
+        }
+
+        // ── Apply saved collapsed state (no animation on initial render) ───────
+        if (this._table.collapsed) {
+            el.classList.add('collapsed', 'no-anim');
+            requestAnimationFrame(() => el.classList.remove('no-anim'));
         }
 
         this._el = el;
@@ -145,6 +303,22 @@ export class TableCard {
     }
 
     /** Re-render the entire card (e.g. after columns change) */
+    /** Toggle collapsed state, animate, and notify app to persist */
+    _toggleCollapse() {
+        const nowCollapsed = !this._el.classList.contains('collapsed');
+        this._table.collapsed = nowCollapsed;
+        this._el.classList.toggle('collapsed', nowCollapsed);
+        this._cb.onCollapse?.(this._table._id, nowCollapsed);
+    }
+
+    /** Expand the card (called by search when a match is inside a collapsed table) */
+    expandCard() {
+        if (!this._el?.classList.contains('collapsed')) return;
+        this._table.collapsed = false;
+        this._el.classList.remove('collapsed');
+        this._cb.onCollapse?.(this._table._id, false);
+    }
+
     rerender(newTable) {
         this._table = newTable;
         const oldEl = this._el;
@@ -169,7 +343,26 @@ export class TableCard {
         if (hlKey) cellEl.classList.add(hlKey);
     }
 
+    /** Update table highlight in-place */
+    updateTableHighlight(hlKey) {
+        if (!this._el) return;
+        HIGHLIGHT_COLORS.forEach(h => this._el.classList.remove(`table-${h.key}`));
+        if (hlKey) {
+            this._el.classList.add(`table-${hlKey}`);
+            this._table.highlight = hlKey;
+        } else {
+            delete this._table.highlight;
+        }
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
+
+    /** Strip stale content-type classes and re-apply based on current text */
+    _refreshCellTypeClass(cell) {
+        ['empty', 'has-url', 'has-code', 'has-path', 'has-command'].forEach(c => cell.classList.remove(c));
+        const cls = cellTypeClass(cell.textContent ?? '');
+        if (cls) cell.classList.add(cls);
+    }
 
     _buildCell(val, rIdx, cIdx, hlKey) {
         const cell = document.createElement('div');
@@ -188,7 +381,7 @@ export class TableCard {
     _renderCellContent(cell, val) {
         // Clear existing content-type classes
         HIGHLIGHT_COLORS.forEach(h => { }); // highlights are stored separately
-        ['empty', 'has-url', 'has-code', 'has-path', 'has-image'].forEach(c => cell.classList.remove(c));
+        ['empty', 'has-url', 'has-code', 'has-path', 'has-image', 'has-file'].forEach(c => cell.classList.remove(c));
         cell.contentEditable = 'false';
 
         if (isImageCell(val)) {
@@ -202,6 +395,55 @@ export class TableCard {
                 const img = cell.querySelector('img');
                 if (img) img.src = url;
             });
+        } else if (isFileCell(val)) {
+            cell.classList.add('has-file');
+            cell.contentEditable = 'false';
+            cell.tabIndex = 0;
+            cell.draggable = true;
+            const { filePath, originalName, size } = parseFileValue(val);
+            const ext = (originalName.split('.').pop() || '').toUpperCase();
+            const sizeLabel = formatBytes(size);
+
+            // Use getClass (no per-icon color classes) — CSS forces --text color
+            let iconClass = 'icon default-icon'; // generic file icon fallback
+            try {
+                if (window.fileIcons) {
+                    const cls = window.fileIcons.getClass(originalName);
+                    if (cls) iconClass = cls;
+                }
+            } catch { /* keep fallback */ }
+
+            cell.innerHTML = `
+                <div class="cell-file-card">
+                    <span class="file-icon ${iconClass}" aria-hidden="true"></span>
+                    <div class="file-info">
+                        <div class="file-name" title="${originalName}">${originalName}</div>
+                        <div class="file-meta">${ext} · ${sizeLabel}</div>
+                    </div>
+                </div>
+            `;
+
+            // Mark the parent row for min-height enforcement
+            const parentRow = cell.closest('.table-row');
+            if (parentRow) parentRow.classList.add('has-file-row');
+
+            // Wire drag-out immediately after building DOM
+            cell.addEventListener('dragstart', (e) => {
+                e.preventDefault();
+                window.electron?.startDrag?.(filePath);
+            });
+
+            // Adaptive layout: switch to column (icon top-left / info bottom-right)
+            // when the cell is tall (sibling image inflates the row height).
+            // ResizeObserver fires on every height change so it stays in sync
+            // even when an async image URL resolves and causes the row to grow.
+            cell._fileResizeObserver?.disconnect();
+            const fileRO = new ResizeObserver(([entry]) => {
+                const h = entry.contentRect.height;
+                cell.classList.toggle('has-file-tall', h > 60);
+            });
+            fileRO.observe(cell);
+            cell._fileResizeObserver = fileRO;
         } else {
             const cls = cellTypeClass(val);
             if (cls) cell.classList.add(cls);
@@ -233,9 +475,12 @@ export class TableCard {
         cell.addEventListener('blur', async () => {
             cell.classList.remove('focused');
             if (cell.classList.contains('has-image')) return;
+            if (cell.classList.contains('has-file')) return;
             const row = parseInt(cell.dataset.row);
             const col = parseInt(cell.dataset.col);
             const val = cell.textContent ?? '';
+            // Re-apply content-type class so color updates immediately on blur
+            this._refreshCellTypeClass(cell);
             this._cb.onCellUpdate?.(_id, row, col, val);
         });
 
@@ -286,8 +531,32 @@ export class TableCard {
 
         // Double-click on text cells → select all text (like a normal editor).
         // Image cells: no action on double-click.
+        // File cells: double-click opens the file with system default app.
         cell.addEventListener('dblclick', (e) => {
-            if (cell.classList.contains('has-image')) return;
+            if (cell.classList.contains('has-file')) {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                const val = this._table.data?.[row]?.[col] ?? '';
+                if (isFileCell(val)) {
+                    const { filePath } = parseFileValue(val);
+                    window.electron?.files?.open?.(filePath);
+                }
+                return;
+            }
+            if (cell.classList.contains('has-image')) {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                const val = this._table.data?.[row]?.[col] ?? '';
+                if (isImageCell(val)) {
+                    const imgPath = getImagePath(val);
+                    const ext     = imgPath.split('.').pop().toLowerCase();
+                    const type    = ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext) ? 'video' : 'image';
+                    const mode    = document.documentElement.dataset.mode   || 'dark';
+                    const accent  = document.documentElement.dataset.accent || 'purple';
+                    window.electron?.media?.preview?.(imgPath, type, { mode, accent });
+                }
+                return;
+            }
             const range = document.createRange();
             range.selectNodeContents(cell);
             const sel = window.getSelection();
@@ -295,16 +564,69 @@ export class TableCard {
             sel?.addRange(range);
         });
 
-        // Long-press (500ms): copy cell content (text or image).
-        cell.addEventListener('pointerdown', () => {
-            this._lpTimer = setTimeout(() => this._copyCell(cell), 500);
+        // Long-press (500ms): copy cell content.
+        // File cells fire onFileLongPress (handled by app.js via context menu).
+        // Image/text cells copy directly.
+        // Guard: only trigger on primary (left) button — right-click must not start
+        // the timer, otherwise pointercancel (which macOS fires on draggable elements
+        // when the OS takes over the contextmenu) leaves the timer running and the
+        // menu opens a second time ~500ms after the first show.
+        let lpFired = false;
+        cell.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 || e.ctrlKey) return; // ignore right-click / ctrl+click (macOS) / middle-click
+            lpFired = false;
+            this._lpTimer = setTimeout(() => {
+                lpFired = true;
+                if (cell.classList.contains('has-file')) {
+                    this._cb.onFileLongPress?.(cell, e.clientX, e.clientY);
+                } else {
+                    this._copyCell(cell);
+                }
+            }, 500);
         });
-        cell.addEventListener('pointerup', () => clearTimeout(this._lpTimer));
-        cell.addEventListener('pointerleave', () => clearTimeout(this._lpTimer));
+        // Clear timer on pointer release OR cancel (e.g. macOS cancels the pointer
+        // on draggable elements when the OS contextmenu takes over).
+        const clearLp = (e) => {
+            clearTimeout(this._lpTimer);
+            if (lpFired) {
+                e.stopPropagation();
+                lpFired = false;
+            }
+        };
+        cell.addEventListener('pointerup', clearLp);
+        cell.addEventListener('pointercancel', clearLp);
+        cell.addEventListener('click', (e) => {
+            if (lpFired) { e.stopPropagation(); lpFired = false; }
+        });
+
+        // Drag-over: show drop-target ring on eligible cells (not image/file — read-only)
+        cell.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!cell.classList.contains('has-image') && !cell.classList.contains('has-file')) {
+                cell.classList.add('drag-over');
+            }
+        });
+
+        cell.addEventListener('dragleave', () => {
+            cell.classList.remove('drag-over');
+        });
+
+        cell.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            cell.classList.remove('drag-over');
+            await this._handleDrop(e, cell);
+        });
 
         // Right-click → context menu
+        // Also clear the long-press timer here as a safeguard: on macOS, ctrl+click
+        // fires pointerdown with button=0 which can slip past the guard above and
+        // start the timer. Clearing it here prevents the timer from calling show()
+        // a second time ~500ms after contextmenu already showed the menu.
         cell.addEventListener('contextmenu', (e) => {
             e.preventDefault();
+            clearTimeout(this._lpTimer);
             this._cb.onContextMenu?.(e, cell);
         });
     }
@@ -314,36 +636,115 @@ export class TableCard {
         const row = parseInt(cell.dataset.row);
         const col = parseInt(cell.dataset.col);
         const isImg = cell.classList.contains('has-image');
+        const isFile = cell.classList.contains('has-file');
 
-        // ── RULE: image cells are read-only ──────────────────────────────────
+        // ── RULE: image cells and file cells are read-only ────────────────────
         if (isImg) {
             showToast('image cells are read-only — long press to copy', 'error');
             return;
         }
+        if (isFile) {
+            showToast('file cells are read-only — long press to copy', 'error');
+            return;
+        }
 
         const items = e.clipboardData?.items ?? [];
-        for (const item of items) {
-            if (item.type.startsWith('image/')) {
-                // ── RULE: can't add an image to a cell that already has text ─
-                const existingText = cell.textContent.trim();
-                if (existingText) {
-                    showToast("can't add an image to a text cell — clear it first", 'error');
+
+        // ── GIF rescue: clipboard converts GIFs to static PNG, so check HTML
+        //    for the original animated source URL and fetch the real file ──────
+        const hasImageBlob = [...items].some(i => i.type.startsWith('image/'));
+        if (hasImageBlob) {
+            const existingText = cell.textContent.trim();
+            if (existingText) {
+                showToast("can't add an image to a text cell — clear it first", 'error');
+                return;
+            }
+
+            // Look for animated-image URL in HTML clipboard first
+            const htmlItem = [...items].find(i => i.type === 'text/html');
+            if (htmlItem) {
+                const html = await new Promise(r => htmlItem.getAsString(r));
+                const srcMatch = html.match(/<img[^>]+src="([^"]+)"/i);
+                if (srcMatch) {
+                    const srcUrl = srcMatch[1];
+                    const isAnimated = /\.(gif|webp|apng)(\?|$)/i.test(srcUrl)
+                        || srcUrl.startsWith('data:image/gif');
+                    if (isAnimated) {
+                        try {
+                            const res = await fetch(srcUrl);
+                            const blob = await res.blob();
+                            const mime = blob.type || 'image/gif';
+                            const buf = await blob.arrayBuffer();
+                            const path = await window.electron.images.save(
+                                Array.from(new Uint8Array(buf)), mime,
+                            );
+                            const imgVal = `${IMG_PREFIX}${path}`;
+                            if (this._table.data[row]) this._table.data[row][col] = imgVal;
+                            this._renderCellContent(cell, imgVal);
+                            this._cb.onCellUpdate?.(_id, row, col, imgVal);
+                            showToast('gif pasted', 'success');
+                            return;
+                        } catch { /* fall through to normal image paste */ }
+                    }
+                }
+            }
+
+            // Standard image paste (PNG / JPEG / native GIF if clipboard provides it)
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (!file) return;
+                    const buf = await file.arrayBuffer();
+                    try {
+                        const path = await window.electron.images.save(Array.from(new Uint8Array(buf)), item.type);
+                        const imgVal = `${IMG_PREFIX}${path}`;
+                        if (this._table.data[row]) this._table.data[row][col] = imgVal;
+                        this._renderCellContent(cell, imgVal);
+                        this._cb.onCellUpdate?.(_id, row, col, imgVal);
+                        showToast('image pasted', 'success');
+                    } catch {
+                        showToast('failed to save image', 'error');
+                    }
                     return;
                 }
-                // Empty cell — allow image paste
+            }
+        }
+
+        // Check for file blobs (non-image files)
+        for (const item of items) {
+            if (item.kind === 'file' && !item.type.startsWith('image/')) {
+                const existingText = cell.textContent.trim();
+                if (existingText) {
+                    showToast("clear the cell first", 'error');
+                    return;
+                }
+
                 const file = item.getAsFile();
-                if (!file) return;
+                if (!file) continue;
+
+                // Validate file size against settings
+                try {
+                    const savedSettings = await window.electron?.settings?.get();
+                    const maxMB = savedSettings?.general?.maxFileSizeMB ?? 50;
+                    if (maxMB > 0 && file.size > maxMB * 1024 * 1024) {
+                        showToast(`file too large — max ${maxMB} MB`, 'error');
+                        return;
+                    }
+                } catch { /* proceed if settings unavailable */ }
+
                 const buf = await file.arrayBuffer();
                 try {
-                    const path = await window.electron.images.save(Array.from(new Uint8Array(buf)));
-                    const imgVal = `${IMG_PREFIX}${path}`;
-                    // Update local model and re-render immediately
-                    if (this._table.data[row]) this._table.data[row][col] = imgVal;
-                    this._renderCellContent(cell, imgVal);
-                    this._cb.onCellUpdate?.(_id, row, col, imgVal);
-                    showToast('image pasted', 'success');
+                    const result = await window.electron.files.save(
+                        Array.from(new Uint8Array(buf)),
+                        file.name
+                    );
+                    const fileVal = buildFileValue(result.path, result.originalName, result.size);
+                    if (this._table.data[row]) this._table.data[row][col] = fileVal;
+                    this._renderCellContent(cell, fileVal);
+                    this._cb.onCellUpdate?.(_id, row, col, fileVal);
+                    showToast(`attached "${result.originalName}"`, 'success');
                 } catch {
-                    showToast('failed to save image', 'error');
+                    showToast('failed to save file', 'error');
                 }
                 return;
             }
@@ -353,6 +754,8 @@ export class TableCard {
         const text = e.clipboardData?.getData('text/plain') ?? '';
         if (text) {
             cell.textContent = text;
+            // Refresh content-type classes so URL/token/path highlight applies immediately
+            this._refreshCellTypeClass(cell);
             // Place cursor at end
             const sel = window.getSelection();
             const range = document.createRange();
@@ -364,19 +767,115 @@ export class TableCard {
         }
     }
 
+    async _handleDrop(e, cell) {
+        const { _id } = this._table;
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const isImg = cell.classList.contains('has-image');
+        const isFile = cell.classList.contains('has-file');
+
+        // ── RULE: image cells and file cells are read-only ────────────────────
+        if (isImg) {
+            showToast('image cells are read-only — long press to copy', 'error');
+            return;
+        }
+        if (isFile) {
+            showToast('file cells are read-only — long press to copy', 'error');
+            return;
+        }
+
+        const files = [...(e.dataTransfer?.files ?? [])];
+        if (!files.length) return;
+
+        const file = files[0]; // one file per cell
+
+        // ── Image drop ───────────────────────────────────────────────────────
+        if (file.type.startsWith('image/')) {
+            const existingText = cell.textContent.trim();
+            if (existingText) {
+                showToast("can't add an image to a text cell — clear it first", 'error');
+                return;
+            }
+            const buf = await file.arrayBuffer();
+            try {
+                const path = await window.electron.images.save(Array.from(new Uint8Array(buf)), file.type);
+                const imgVal = `${IMG_PREFIX}${path}`;
+                if (this._table.data[row]) this._table.data[row][col] = imgVal;
+                this._renderCellContent(cell, imgVal);
+                this._cb.onCellUpdate?.(_id, row, col, imgVal);
+                showToast('image dropped', 'success');
+            } catch {
+                showToast('failed to save image', 'error');
+            }
+            return;
+        }
+
+        // ── Non-image file drop ──────────────────────────────────────────────
+        const existingText = cell.textContent.trim();
+        if (existingText) {
+            showToast('clear the cell first', 'error');
+            return;
+        }
+
+        // Validate file size against settings
+        try {
+            const savedSettings = await window.electron?.settings?.get();
+            const maxMB = savedSettings?.general?.maxFileSizeMB ?? 50;
+            if (maxMB > 0 && file.size > maxMB * 1024 * 1024) {
+                showToast(`file too large — max ${maxMB} MB`, 'error');
+                return;
+            }
+        } catch { /* proceed if settings unavailable */ }
+
+        const buf = await file.arrayBuffer();
+        try {
+            const result = await window.electron.files.save(
+                Array.from(new Uint8Array(buf)),
+                file.name
+            );
+            const fileVal = buildFileValue(result.path, result.originalName, result.size);
+            if (this._table.data[row]) this._table.data[row][col] = fileVal;
+            this._renderCellContent(cell, fileVal);
+            this._cb.onCellUpdate?.(_id, row, col, fileVal);
+            showToast(`attached "${result.originalName}"`, 'success');
+        } catch {
+            showToast('failed to save file', 'error');
+        }
+    }
+
     async _copyCell(cell) {
         const row = parseInt(cell.dataset.row);
         const col = parseInt(cell.dataset.col);
         const val = this._table.data?.[row]?.[col] ?? '';
-        if (isImageCell(val)) {
-            // Copy image file to clipboard if possible
+        if (isFileCell(val)) {
+            const { filePath, originalName } = parseFileValue(val);
+            if (isTextFile(originalName)) {
+                // Text file — copy file contents
+                try {
+                    const content = await window.electron.files.readText(filePath);
+                    await navigator.clipboard.writeText(content);
+                    showToast(`copied contents of "${originalName}"`, 'success');
+                } catch { showToast('copy failed', 'error'); }
+            } else {
+                // Binary file — copy file path
+                try {
+                    await navigator.clipboard.writeText(filePath);
+                    showToast(`copied path for "${originalName}"`, 'success');
+                } catch { showToast('copy failed', 'error'); }
+            }
+        } else if (isImageCell(val)) {
             try {
-                const path = getImagePath(val);
-                const fileName = path.split('/').pop().split('\\').pop() || 'image';
-                const url = await this._resolveImageUrl(path);
-                const res = await fetch(url);
-                const blob = await res.blob();
-                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                const imgPath = getImagePath(val);
+                const fileName = imgPath.split('/').pop().split('\\').pop() || 'image';
+                // GIF / animated: use native file clipboard to preserve animation
+                if (/\.(gif|webp|apng)$/i.test(imgPath)) {
+                    await window.electron.clipboard.copyFile(imgPath);
+                } else {
+                    const url = await this._resolveImageUrl(imgPath);
+                    const res = await fetch(url);
+                    const blob = await res.blob();
+                    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                }
                 showToast(`copied "${fileName}"`, 'success');
             } catch { showToast('copy failed', 'error'); }
         } else {
@@ -393,28 +892,62 @@ export class TableCard {
         const col = parseInt(cell.dataset.col);
         const val = this._table.data?.[row]?.[col] ?? '';
 
-        if (!val.trim()) return; // nothing to cut
+        if (!val.trim && !isFileCell(val)) {
+            if (!val) return;
+        }
+        if (!val) return;
 
-        if (isImageCell(val)) {
+        if (isFileCell(val)) {
+            const { filePath, originalName } = parseFileValue(val);
+            if (isTextFile(originalName)) {
+                try {
+                    const content = await window.electron.files.readText(filePath);
+                    await navigator.clipboard.writeText(content);
+                    showToast(`cut contents of "${originalName}"`, 'success');
+                } catch {
+                    showToast('cut failed', 'error');
+                    return;
+                }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(filePath);
+                    showToast(`cut path for "${originalName}"`, 'success');
+                } catch {
+                    showToast('cut failed', 'error');
+                    return;
+                }
+            }
+            // Delete file from disk
+            await window.electron.files.delete(filePath).catch(() => { });
+            // Clear cell
+            if (this._table.data[row]) this._table.data[row][col] = '';
+            this._renderCellContent(cell, '');
+            this._cb.onCellUpdate?.(_id, row, col, '');
+        } else if (isImageCell(val)) {
             const imgPath = getImagePath(val);
             const fileName = imgPath.split('/').pop().split('\\').pop() || 'image';
             try {
-                const url = await this._resolveImageUrl(imgPath);
-                const res = await fetch(url);
-                const blob = await res.blob();
-                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                if (/\.(gif|webp|apng)$/i.test(imgPath)) {
+                    await window.electron.clipboard.copyFile(imgPath);
+                } else {
+                    const url = await this._resolveImageUrl(imgPath);
+                    const res = await fetch(url);
+                    const blob = await res.blob();
+                    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                }
             } catch {
                 showToast('cut failed', 'error');
                 return;
             }
             // Delete the image file from disk
-            await window.electron.images.delete(imgPath).catch(() => {});
+            await window.electron.images.delete(imgPath).catch(() => { });
             // Clear cell
             if (this._table.data[row]) this._table.data[row][col] = '';
             this._renderCellContent(cell, '');
             this._cb.onCellUpdate?.(_id, row, col, '');
             showToast(`cut "${fileName}"`, 'success');
         } else {
+            if (!val.trim()) return;
             try {
                 await navigator.clipboard.writeText(val);
             } catch {
@@ -468,16 +1001,21 @@ export class TableCard {
 
         const sortedRows = [...rowMap.entries()].sort((a, b) => a[0] - b[0]);
 
+        const cellDisplayText = (v) => {
+            if (isImageCell(v)) return '[image]';
+            if (isFileCell(v)) return parseFileValue(v).originalName;
+            return v;
+        };
+
         const tsv = sortedRows.map(([, colMap]) => {
             const cols = [...colMap.entries()].sort((a, b) => a[0] - b[0]);
-            return cols.map(([, v]) => isImageCell(v) ? '[image]' : v).join('\t');
+            return cols.map(([, v]) => cellDisplayText(v)).join('\t');
         }).join('\n');
 
         const htmlRows = sortedRows.map(([, colMap]) => {
             const cols = [...colMap.entries()].sort((a, b) => a[0] - b[0]);
             const tds = cols.map(([, v]) => {
-                const display = isImageCell(v) ? '[image]' : escapeHtml(v);
-                return `<td>${display}</td>`;
+                return `<td>${escapeHtml(cellDisplayText(v))}</td>`;
             }).join('');
             return `<tr>${tds}</tr>`;
         }).join('');
@@ -517,12 +1055,15 @@ export class TableCard {
             this._sel.active = false;
             this._sel.startRow = this._sel.endRow = this._sel.startCol = this._sel.endCol = -1;
             el.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
-            el.querySelectorAll('.cell:not(.has-image)').forEach(c => (c.contentEditable = 'true'));
+            el.querySelectorAll('.cell:not(.has-image):not(.has-file)').forEach(c => (c.contentEditable = 'true'));
         };
 
         el.addEventListener('mousedown', (e) => {
             const cell = getCell(e.target);
             if (!cell || e.button !== 0) return;
+
+            // File cells handle their own drag (native drag-out) — skip multi-cell selection
+            if (cell.classList.contains('has-file')) return;
 
             dragActive = false;
             this._sel.active = true;
@@ -564,7 +1105,7 @@ export class TableCard {
                 // End of cross-cell drag — keep visual selection, restore editing.
                 dragActive = false;
                 this._sel.active = false;
-                el.querySelectorAll('.cell:not(.has-image)').forEach(c => (c.contentEditable = 'true'));
+                el.querySelectorAll('.cell:not(.has-image):not(.has-file)').forEach(c => (c.contentEditable = 'true'));
             }
         };
 
@@ -581,8 +1122,8 @@ export class TableCard {
                 const { tsv, html, count } = this._buildSelectionPayload(selected);
                 await navigator.clipboard.write([
                     new ClipboardItem({
-                        'text/html':  new Blob([html], { type: 'text/html' }),
-                        'text/plain': new Blob([tsv],  { type: 'text/plain' }),
+                        'text/html': new Blob([html], { type: 'text/html' }),
+                        'text/plain': new Blob([tsv], { type: 'text/plain' }),
                     })
                 ]);
                 showToast(`copied ${count} cell${count > 1 ? 's' : ''}`, 'success');
@@ -594,34 +1135,27 @@ export class TableCard {
                 try {
                     await navigator.clipboard.write([
                         new ClipboardItem({
-                            'text/html':  new Blob([html], { type: 'text/html' }),
-                            'text/plain': new Blob([tsv],  { type: 'text/plain' }),
+                            'text/html': new Blob([html], { type: 'text/html' }),
+                            'text/plain': new Blob([tsv], { type: 'text/plain' }),
                         })
                     ]);
                 } catch {
                     showToast('cut failed', 'error');
                     return;
                 }
-                // Clear every selected cell
-                for (const [r, colMap] of rowMap) {
-                    for (const [col, val] of colMap) {
-                        if (isImageCell(val)) {
-                            await window.electron.images.delete(getImagePath(val)).catch(() => {});
-                        }
-                        if (this._table.data[r]) this._table.data[r][col] = '';
-                        const cellEl = el.querySelector(`.cell[data-row="${r}"][data-col="${col}"]`);
-                        if (cellEl) {
-                            if (cellEl.classList.contains('has-image')) {
-                                this._renderCellContent(cellEl, '');
-                            } else {
-                                cellEl.textContent = '';
-                            }
-                        }
-                        this._cb.onCellUpdate?.(this._table._id, r, col, '');
-                    }
-                }
+                await this._clearCells(rowMap);
                 clearSelection();
                 showToast(`cut ${count} cell${count > 1 ? 's' : ''}`, 'success');
+            }
+
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey && !e.metaKey) {
+                const active = document.activeElement;
+                if (active && (active.contentEditable === 'true' || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+                e.preventDefault();
+                const { rowMap, count } = this._buildSelectionPayload(selected);
+                await this._clearCells(rowMap);
+                clearSelection();
+                showToast(`cleared ${count} cell${count > 1 ? 's' : ''}`, 'info');
             }
 
             if (e.key === 'Escape') {
@@ -629,10 +1163,42 @@ export class TableCard {
             }
         });
 
-        // Click outside clears selection
+        // Click outside clears selection.
+        // Exception: clicking inside the context menu must NOT clear selection —
+        // batch highlight/clear-highlight reads .cell-selected after the click.
         document.addEventListener('mousedown', (e) => {
-            if (!el.contains(e.target)) clearSelection();
+            const ctxMenu = document.getElementById('cell-ctx-menu');
+            if (!el.contains(e.target) && !(ctxMenu && ctxMenu.contains(e.target))) {
+                clearSelection();
+            }
         }, { capture: true });
+    }
+
+    // ── Clear cells without touching clipboard ──────────────────────────────
+
+    async _clearCells(rowMap) {
+        const el = this._el;
+        for (const [r, colMap] of rowMap) {
+            for (const [col, val] of colMap) {
+                if (isImageCell(val)) {
+                    await window.electron.images.delete(getImagePath(val)).catch(() => { });
+                }
+                if (isFileCell(val)) {
+                    const { filePath: fp } = parseFileValue(val);
+                    await window.electron.files.delete(fp).catch(() => { });
+                }
+                if (this._table.data[r]) this._table.data[r][col] = '';
+                const cellEl = el.querySelector(`.cell[data-row="${r}"][data-col="${col}"]`);
+                if (cellEl) {
+                    if (cellEl.classList.contains('has-image') || cellEl.classList.contains('has-file')) {
+                        this._renderCellContent(cellEl, '');
+                    } else {
+                        cellEl.textContent = '';
+                    }
+                }
+                this._cb.onCellUpdate?.(this._table._id, r, col, '');
+            }
+        }
     }
 
     // ── Bottom-edge resize handle ───────────────────────────────────────────

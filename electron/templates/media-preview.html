@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="dark" data-accent="purple">
+<head>
+  <meta charset="UTF-8" />
+  <title>preview — knotless</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ══════════════════════════════════════════════════
+       THEME VARIABLES — mirrors rtl-theme-vars.css
+    ══════════════════════════════════════════════════ */
+    :root {
+      --accent-h: 270; --accent-s: 70%; --accent-l: 68%;
+      --accent:     hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+      --accent-dim: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.12);
+      --accent-txt: #0a0a0a;
+      --bg:      #0a0a0a; --surface:  #141414; --surface2: #1c1c1c;
+      --border:  #242424; --border2:  #303030;
+      --text:    #e8e8e0; --text-mid: #aaa8a0; --text-dim: #787870;
+      --glow:
+        0 0 2px  1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.70),
+        0 0 10px 3px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.35),
+        0 0 28px 6px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.15);
+    }
+
+    [data-mode="light"] {
+      --bg: #f0ede8; --surface: #e8e4de; --surface2: #dedad4;
+      --border: #b4b0a8; --border2: #a4a09a;
+      --text: #121210; --text-mid: #484840; --text-dim: #6e6c66;
+      --accent-txt: #ffffff;
+    }
+
+    /* Accent presets */
+    [data-accent="lime"]   { --accent-h: 86;  --accent-s: 84%; --accent-l: 62%; }
+    [data-accent="red"]    { --accent-h: 4;   --accent-s: 90%; --accent-l: 62%; --accent-txt: #fff; }
+    [data-accent="pink"]   { --accent-h: 330; --accent-s: 80%; --accent-l: 68%; }
+    [data-accent="purple"] { --accent-h: 270; --accent-s: 70%; --accent-l: 68%; }
+    [data-accent="yellow"] { --accent-h: 46;  --accent-s: 96%; --accent-l: 60%; }
+    [data-accent="blue"]   { --accent-h: 210; --accent-s: 80%; --accent-l: 62%; }
+    [data-accent="cyan"]   { --accent-h: 186; --accent-s: 80%; --accent-l: 52%; }
+    [data-accent="orange"] { --accent-h: 25;  --accent-s: 90%; --accent-l: 58%; --accent-txt: #fff; }
+
+    /* Light-mode accent darkening */
+    [data-mode="light"][data-accent="lime"]   { --accent-l: 34%; }
+    [data-mode="light"][data-accent="yellow"] { --accent-l: 36%; }
+    [data-mode="light"][data-accent="purple"] { --accent-l: 42%; }
+    [data-mode="light"][data-accent="cyan"]   { --accent-l: 34%; }
+    [data-mode="light"][data-accent="pink"]   { --accent-l: 46%; }
+    [data-mode="light"][data-accent="blue"]   { --accent-l: 42%; }
+    [data-mode="light"][data-accent="orange"] { --accent-l: 42%; }
+    [data-mode="light"][data-accent="red"]    { --accent-l: 44%; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* ══════════════════════════════════════════════════
+       BASE
+    ══════════════════════════════════════════════════ */
+    * { font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace; }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════════════════
+       TITLEBAR
+    ══════════════════════════════════════════════════ */
+    .titlebar {
+      height: 38px;
+      min-height: 38px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      -webkit-app-region: drag;
+    }
+
+    /* Space for macOS traffic lights */
+    .titlebar-mac-gap {
+      width: 74px;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-title {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0 8px;
+    }
+
+    /* Light mode: brand name goes bold black instead of accent */
+    [data-mode="light"] .titlebar-title { color: #121210; }
+
+    .titlebar-actions {
+      display: flex;
+      align-items: center;
+      padding-right: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .close-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text-dim);
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.22s;
+      -webkit-app-region: no-drag;
+    }
+
+    /* Light mode: bold black border + text */
+    [data-mode="light"] .close-btn {
+      color: #121210;
+      border-color: #121210;
+      font-weight: 700;
+      background: var(--surface2);
+    }
+
+    /* Hover: red glow — same in both modes */
+    .close-btn:hover {
+      background: transparent;
+      color: #e84040;
+      border-color: #e84040;
+      box-shadow:
+        0 0 2px  1px rgba(232, 64, 64, 0.70),
+        0 0 10px 3px rgba(232, 64, 64, 0.35),
+        0 0 28px 6px rgba(232, 64, 64, 0.15);
+    }
+
+    /* macOS: traffic lights handle close, hide ours */
+    body.is-mac  .close-btn     { display: none; }
+    body.is-mac  .titlebar-mac-gap { display: block; }
+    body:not(.is-mac) .titlebar-mac-gap { display: none; }
+
+    /* ══════════════════════════════════════════════════
+       MEDIA AREA
+    ══════════════════════════════════════════════════ */
+    .media-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      cursor: grab;
+    }
+
+    .media-area.dragging { cursor: grabbing; }
+    .media-area.is-video { cursor: default; }
+
+    .media-img {
+      display: block;
+      max-width: none;
+      max-height: none;
+      transform-origin: center center;
+      pointer-events: none;
+      -webkit-user-drag: none;
+    }
+
+    .media-video {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+    }
+
+    .media-error {
+      color: var(--text-dim);
+      font-size: 12px;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+
+    /* ══════════════════════════════════════════════════
+       VIDEO CONTROLS
+    ══════════════════════════════════════════════════ */
+    .video-controls {
+      flex-shrink: 0;
+      height: 42px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    .video-controls.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .ctrl-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 5px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text-mid);
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s, box-shadow 0.22s;
+    }
+
+    .ctrl-btn:hover {
+      color: var(--accent);
+      border-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.6);
+      box-shadow: var(--glow);
+    }
+
+    /* Seek bar */
+    .seek-wrap {
+      flex: 1;
+      position: relative;
+      height: 20px; /* tall hit area */
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .seek-track {
+      position: absolute;
+      left: 0; right: 0;
+      height: 3px;
+      background: var(--border2);
+      border-radius: 2px;
+    }
+
+    .seek-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      background: var(--accent);
+      border-radius: 2px;
+      width: 0%;
+      pointer-events: none;
+    }
+
+    .seek-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: var(--glow);
+      pointer-events: none;
+      transition: transform 0.1s;
+    }
+
+    .seek-wrap:hover .seek-thumb { transform: translate(-50%, -50%) scale(1.25); }
+
+    .time-display {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-width: 72px;
+      text-align: right;
+    }
+
+    .speed-btn { width: 34px; font-size: 10px; letter-spacing: 0.02em; }
+
+    /* ══════════════════════════════════════════════════
+       BOTTOM TOOLBAR
+    ══════════════════════════════════════════════════ */
+    .toolbar {
+      flex-shrink: 0;
+      height: 32px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+    }
+
+    .zoom-display {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+      min-width: 38px;
+      flex-shrink: 0;
+    }
+
+    .tool-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text-mid);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s, box-shadow 0.22s;
+    }
+
+    .tool-btn:hover {
+      color: var(--accent);
+      border-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.6);
+      box-shadow: var(--glow);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .filename-label {
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 220px;
+      flex-shrink: 1;
+    }
+
+    /* ══════════════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════════════ */
+    .toast-container {
+      position: fixed;
+      bottom: 44px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 6px 14px;
+      border-radius: 5px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      background: var(--accent);
+      color: var(--accent-txt);
+      white-space: nowrap;
+      animation: toastIn 0.18s ease forwards;
+    }
+
+    .toast.out { animation: toastOut 0.18s ease forwards; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: scale(0.88); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0; transform: scale(0.88); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Titlebar ── -->
+  <div class="titlebar">
+    <div class="titlebar-mac-gap"></div>
+    <span class="titlebar-title" id="titlebar-title">preview</span>
+    <div class="titlebar-actions">
+      <button class="close-btn" id="close-btn" title="close">✕</button>
+    </div>
+  </div>
+
+  <!-- ── Media area ── -->
+  <div class="media-area" id="media-area">
+    <img id="media-img" alt="media preview" style="display:none" />
+    <video id="media-video" style="display:none"></video>
+  </div>
+
+  <!-- ── Video controls (video only, hidden for images) ── -->
+  <div class="video-controls" id="video-controls" style="display:none">
+    <button class="ctrl-btn" id="play-btn" title="play / pause  (Space)">▶</button>
+    <div class="seek-wrap" id="seek-wrap">
+      <div class="seek-track">
+        <div class="seek-fill" id="seek-fill"></div>
+      </div>
+      <div class="seek-thumb" id="seek-thumb"></div>
+    </div>
+    <span class="time-display" id="time-display">0:00 / 0:00</span>
+    <button class="ctrl-btn" id="vol-btn" title="mute / unmute  (↑ ↓)">🔊</button>
+    <button class="ctrl-btn speed-btn" id="speed-btn" title="playback speed">1.0x</button>
+  </div>
+
+  <!-- ── Bottom toolbar ── -->
+  <div class="toolbar">
+    <span class="zoom-display" id="zoom-display">100%</span>
+    <button class="tool-btn" id="fit-btn" title="fit to window  (0)">↺</button>
+    <button class="tool-btn" id="copy-btn" title="copy to clipboard">📋</button>
+    <div class="toolbar-spacer"></div>
+    <span class="filename-label" id="filename-label"></span>
+  </div>
+
+  <!-- ── Toast container ── -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ── Parse URL params ───────────────────────────────────────────────────────
+    const params    = new URLSearchParams(window.location.search);
+    const fileUrl   = params.get('file')   || '';
+    const mediaType = params.get('type')   || 'image';   // 'image' | 'video'
+    const mode      = params.get('mode')   || 'dark';
+    const accent    = params.get('accent') || 'purple';
+
+    // Apply theme snapshot
+    const htmlEl = document.documentElement;
+    htmlEl.dataset.mode   = mode;
+    htmlEl.dataset.accent = accent;
+
+    // Platform
+    const platform = window.preview?.platform || 'darwin';
+    if (platform === 'darwin') document.body.classList.add('is-mac');
+
+    // Extract local path for clipboard IPC (strip file:// prefix)
+    let filePath = '';
+    if (fileUrl) {
+      try {
+        const u = new URL(fileUrl);
+        filePath = decodeURIComponent(u.pathname);
+        // Windows: /C:/path → C:/path
+        if (/^\/[A-Za-z]:[\\/]/.test(filePath)) filePath = filePath.slice(1);
+      } catch {}
+    }
+
+    // Filename
+    const fileName = filePath.split(/[\\/]/).pop() || 'media';
+    const fileExt  = fileName.split('.').pop().toLowerCase();
+
+    document.getElementById('titlebar-title').textContent = 'knotless';
+    document.getElementById('filename-label').textContent = fileName;
+
+    // ── Element refs ──────────────────────────────────────────────────────────
+    const mediaArea     = document.getElementById('media-area');
+    const mediaImg      = document.getElementById('media-img');
+    const mediaVideo    = document.getElementById('media-video');
+    const videoControls = document.getElementById('video-controls');
+    const playBtn       = document.getElementById('play-btn');
+    const seekWrap      = document.getElementById('seek-wrap');
+    const seekFill      = document.getElementById('seek-fill');
+    const seekThumb     = document.getElementById('seek-thumb');
+    const timeDisplay   = document.getElementById('time-display');
+    const volBtn        = document.getElementById('vol-btn');
+    const speedBtn      = document.getElementById('speed-btn');
+    const zoomDisplay   = document.getElementById('zoom-display');
+    const fitBtn        = document.getElementById('fit-btn');
+    const copyBtn       = document.getElementById('copy-btn');
+    const toastCont     = document.getElementById('toast-container');
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    function showToast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      toastCont.appendChild(t);
+      setTimeout(() => {
+        t.classList.add('out');
+        t.addEventListener('animationend', () => t.remove(), { once: true });
+      }, 1800);
+    }
+
+    // ── Close ─────────────────────────────────────────────────────────────────
+    document.getElementById('close-btn').addEventListener('click', () => window.close());
+
+    // ── Shared resetToFit reference (set by initImageZoom) ────────────────────
+    let resetToFit = () => {};
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //   IMAGE / GIF  —  zoom & pan
+    // ═══════════════════════════════════════════════════════════════════════════
+    function initImageZoom() {
+      let scale     = 1;
+      let tx = 0, ty = 0;
+      let isDragging = false;
+      let dragX0, dragY0, startTx, startTy;
+      let isFitMode  = true;
+
+      function applyTransform() {
+        mediaImg.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        zoomDisplay.textContent  = Math.round(scale * 100) + '%';
+      }
+
+      resetToFit = function () {
+        if (!mediaImg.naturalWidth || !mediaImg.naturalHeight) return;
+        const pad = 24;
+        const fw  = (mediaArea.clientWidth  - pad) / mediaImg.naturalWidth;
+        const fh  = (mediaArea.clientHeight - pad) / mediaImg.naturalHeight;
+        scale     = Math.min(fw, fh);
+        tx = 0; ty = 0;
+        isFitMode = true;
+        applyTransform();
+      };
+
+      mediaImg.onload  = () => resetToFit();
+      mediaImg.onerror = () => {
+        mediaArea.innerHTML = '<div class="media-error">⚠ could not load media</div>';
+      };
+
+      // Scroll-wheel zoom — cursor-anchored
+      mediaArea.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect   = mediaArea.getBoundingClientRect();
+        const mx     = e.clientX - rect.left - rect.width  / 2;
+        const my     = e.clientY - rect.top  - rect.height / 2;
+        const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        const ns     = Math.max(0.04, Math.min(24, scale * factor));
+        tx  = mx - (mx - tx) * ns / scale;
+        ty  = my - (my - ty) * ns / scale;
+        scale     = ns;
+        isFitMode = false;
+        applyTransform();
+      }, { passive: false });
+
+      // Drag to pan
+      mediaArea.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        dragX0 = e.clientX; dragY0 = e.clientY;
+        startTx = tx; startTy = ty;
+        mediaArea.classList.add('dragging');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        tx = startTx + (e.clientX - dragX0);
+        ty = startTy + (e.clientY - dragY0);
+        applyTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+        mediaArea.classList.remove('dragging');
+      });
+
+      // Double-click: toggle fit ↔ 1:1
+      mediaArea.addEventListener('dblclick', () => {
+        if (isFitMode) {
+          scale = 1; tx = 0; ty = 0;
+          isFitMode = false;
+          applyTransform();
+        } else {
+          resetToFit();
+        }
+      });
+
+      fitBtn.addEventListener('click', () => resetToFit());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //   VIDEO  —  custom playback controls
+    // ═══════════════════════════════════════════════════════════════════════════
+    function initVideoControls() {
+      const SPEEDS = [0.5, 1, 1.5, 2];
+      let speedIdx = 1;
+      let isMuted  = false;
+      let prevVol  = 1;
+      let isSeeking = false;
+      let hideTimer  = null;
+
+      videoControls.style.display = 'flex';
+
+      // Hide zoom + fit (not applicable for video)
+      fitBtn.style.visibility      = 'hidden';
+      zoomDisplay.style.visibility = 'hidden';
+
+      // ── Auto-hide controls ───────────────────────────────────────────────────
+      function showControls() {
+        videoControls.classList.remove('fade-out');
+        clearTimeout(hideTimer);
+        // Only auto-hide while playing
+        if (!mediaVideo.paused) {
+          hideTimer = setTimeout(() => videoControls.classList.add('fade-out'), 2000);
+        }
+      }
+
+      mediaArea.addEventListener('mousemove', showControls);
+      videoControls.addEventListener('mousemove', () => {
+        videoControls.classList.remove('fade-out');
+        clearTimeout(hideTimer);
+      });
+
+      // ── Time formatting ──────────────────────────────────────────────────────
+      function fmt(s) {
+        s = isNaN(s) ? 0 : s;
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return m + ':' + (sec < 10 ? '0' : '') + sec;
+      }
+
+      // ── Seek progress update ─────────────────────────────────────────────────
+      function updateSeek(pct) {
+        seekFill.style.width  = pct + '%';
+        seekThumb.style.left  = pct + '%';
+      }
+
+      // ── Play / Pause ─────────────────────────────────────────────────────────
+      function togglePlay() {
+        if (mediaVideo.paused) {
+          mediaVideo.play().catch(() => {});
+          playBtn.textContent = '⏸';
+          showControls();
+        } else {
+          mediaVideo.pause();
+          playBtn.textContent = '▶';
+          videoControls.classList.remove('fade-out');
+          clearTimeout(hideTimer);
+        }
+      }
+
+      playBtn.addEventListener('click', togglePlay);
+      mediaVideo.addEventListener('click', togglePlay);
+
+      mediaVideo.addEventListener('ended', () => {
+        playBtn.textContent = '▶';
+        videoControls.classList.remove('fade-out');
+        clearTimeout(hideTimer);
+      });
+
+      // ── Time update ──────────────────────────────────────────────────────────
+      mediaVideo.addEventListener('timeupdate', () => {
+        if (isSeeking) return;
+        const t = mediaVideo.currentTime;
+        const d = mediaVideo.duration || 0;
+        const pct = d > 0 ? (t / d) * 100 : 0;
+        updateSeek(pct);
+        timeDisplay.textContent = fmt(t) + ' / ' + fmt(d);
+      });
+
+      // ── Seek bar ─────────────────────────────────────────────────────────────
+      function seekFromEvent(e) {
+        const rect = seekWrap.getBoundingClientRect();
+        const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        updateSeek(pct * 100);
+        if (mediaVideo.duration) mediaVideo.currentTime = pct * mediaVideo.duration;
+      }
+
+      seekWrap.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        isSeeking = true;
+        seekFromEvent(e);
+        const onMove = (ev) => seekFromEvent(ev);
+        const onUp   = () => {
+          isSeeking = false;
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup',   onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup',   onUp);
+      });
+
+      // ── Volume ───────────────────────────────────────────────────────────────
+      volBtn.addEventListener('click', () => {
+        if (isMuted || mediaVideo.muted) {
+          mediaVideo.muted  = false;
+          mediaVideo.volume = prevVol || 1;
+          isMuted = false;
+          volBtn.textContent = '🔊';
+        } else {
+          prevVol = mediaVideo.volume || 1;
+          mediaVideo.muted = true;
+          isMuted = true;
+          volBtn.textContent = '🔇';
+        }
+      });
+
+      // ── Speed ────────────────────────────────────────────────────────────────
+      speedBtn.addEventListener('click', () => {
+        speedIdx = (speedIdx + 1) % SPEEDS.length;
+        const s = SPEEDS[speedIdx];
+        mediaVideo.playbackRate = s;
+        speedBtn.textContent = s + 'x';
+      });
+
+      // ── Keyboard (video-specific) ─────────────────────────────────────────────
+      document.addEventListener('keydown', (e) => {
+        switch (e.key) {
+          case ' ':
+            e.preventDefault();
+            togglePlay();
+            break;
+          case 'ArrowLeft':
+            mediaVideo.currentTime = Math.max(0, mediaVideo.currentTime - 5);
+            showControls();
+            break;
+          case 'ArrowRight':
+            mediaVideo.currentTime = Math.min(mediaVideo.duration || 0, mediaVideo.currentTime + 5);
+            showControls();
+            break;
+          case 'ArrowUp':
+            mediaVideo.volume = Math.min(1, (mediaVideo.volume || 0) + 0.1);
+            if (isMuted) { mediaVideo.muted = false; isMuted = false; volBtn.textContent = '🔊'; }
+            break;
+          case 'ArrowDown':
+            mediaVideo.volume = Math.max(0, (mediaVideo.volume || 0) - 0.1);
+            break;
+          case 'f': case 'F':
+            if (!document.fullscreenElement) mediaVideo.requestFullscreen?.().catch(() => {});
+            else document.exitFullscreen?.();
+            break;
+          case 'Escape':
+            if (!document.fullscreenElement) window.close();
+            break;
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //   COPY
+    // ═══════════════════════════════════════════════════════════════════════════
+    const GIF_EXTS   = new Set(['gif', 'apng']);
+    const VIDEO_EXTS = new Set(['mp4', 'mov', 'webm', 'avi', 'mkv']);
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        if (VIDEO_EXTS.has(fileExt)) {
+          // Video: capture current frame as PNG
+          const canvas  = document.createElement('canvas');
+          canvas.width  = mediaVideo.videoWidth;
+          canvas.height = mediaVideo.videoHeight;
+          canvas.getContext('2d').drawImage(mediaVideo, 0, 0);
+          canvas.toBlob(async (blob) => {
+            if (!blob) return showToast('⚠ frame capture failed');
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+              showToast('✓ frame copied');
+            } catch { showToast('⚠ copy failed'); }
+          }, 'image/png');
+
+        } else if (GIF_EXTS.has(fileExt)) {
+          // GIF: native file clipboard preserves animation
+          await window.preview?.copyFile?.(filePath);
+          showToast('✓ gif copied');
+
+        } else {
+          // Image: fetch blob → ClipboardItem
+          const resp = await fetch(fileUrl);
+          const blob = await resp.blob();
+          const mime = blob.type || 'image/png';
+          await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
+          showToast('✓ copied');
+        }
+      } catch {
+        showToast('⚠ copy failed');
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //   KEYBOARD — shared (Esc / zoom keys for images)
+    // ═══════════════════════════════════════════════════════════════════════════
+    document.addEventListener('keydown', (e) => {
+      if (mediaType === 'video') return; // video handles its own keys
+
+      switch (e.key) {
+        case '+': case '=':
+          if (mediaImg.style.display !== 'none') {
+            const rect = mediaArea.getBoundingClientRect();
+            const ns = Math.min(24, parseFloat(mediaImg.style.transform?.match(/scale\(([^)]+)\)/)?.[1] || 1) * 1.2);
+            // Simple center zoom (no cursor anchor from keyboard)
+            mediaImg.style.transform = mediaImg.style.transform
+              .replace(/scale\([^)]+\)/, `scale(${ns})`);
+            zoomDisplay.textContent = Math.round(ns * 100) + '%';
+          }
+          break;
+        case '-':
+          if (mediaImg.style.display !== 'none') {
+            const ns = Math.max(0.04, parseFloat(mediaImg.style.transform?.match(/scale\([^)]+\)/)?.[1] || 1) / 1.2);
+            mediaImg.style.transform = mediaImg.style.transform
+              .replace(/scale\([^)]+\)/, `scale(${ns})`);
+            zoomDisplay.textContent = Math.round(ns * 100) + '%';
+          }
+          break;
+        case '0':
+          resetToFit();
+          break;
+        case 'Escape':
+          window.close();
+          break;
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //   BOOT — load the media
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (mediaType === 'video') {
+      mediaArea.classList.add('is-video');
+      mediaVideo.style.display = 'block';
+      mediaVideo.src = fileUrl;
+      initVideoControls();
+    } else {
+      mediaImg.style.display = 'block';
+      mediaImg.src = fileUrl;
+      initImageZoom();
+    }
+  </script>
+</body>
+</html>

@@ -5,6 +5,8 @@ const DEFAULT_SETTINGS = {
     general: {
         launchOnStartup: false,
         defaultColumns: 3,
+        maxFileSizeMB: 50,
+        lastOpenSheetId: null,
     },
     theme: {
         mode: 'dark',
@@ -15,6 +17,14 @@ const DEFAULT_SETTINGS = {
         lockOnSleep: false,
         autoLockTimeout: 'never',
         clearDataOnExit: false,
+    },
+    // ── Export / Import config (hidden from settings UI) ──────────────────────
+    // Capped at 250 MB to prevent massive exports that could hang the app or
+    // fill the user's disk. Not exposed in the settings panel intentionally.
+    // To increase the limit, change maxBlobSizeMB here or edit settings.json
+    // directly in the userData directory.
+    exportImport: {
+        maxBlobSizeMB: 250,
     },
 };
 

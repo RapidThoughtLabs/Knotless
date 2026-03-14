@@ -26,19 +26,115 @@ class DatabaseService {
             autoload: true,
             timestampData: true // Automatically add createdAt and updatedAt
         });
+
+        // Second datastore for sheets
+        const sheetsDbPath = path.join(userDataPath, 'sheets.db');
+        this.sheetsDb = new Datastore({
+            filename: sheetsDbPath,
+            autoload: true,
+            timestampData: true
+        });
     }
 
+    // ── Sheets ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Ensure at least one sheet exists. If the DB is empty, creates a default
+     * "home" sheet. Does nothing if any sheets already exist.
+     * @returns {Promise<Object|null>} The created home sheet doc, or null if sheets existed
+     */
+    ensureHomeSheet() {
+        return new Promise((resolve, reject) => {
+            this.sheetsDb.count({}, (err, count) => {
+                if (err) return reject(err);
+                if (count > 0) return resolve(null);
+                this.sheetsDb.insert(
+                    { name: 'home', createdAt: new Date(), updatedAt: new Date() },
+                    (err, newDoc) => {
+                        if (err) reject(err);
+                        else resolve(newDoc);
+                    }
+                );
+            });
+        });
+    }
+
+    /**
+     * Create a new sheet
+     * @param {string} name
+     * @returns {Promise<Object>} Created sheet doc
+     */
+    createSheet(name) {
+        return new Promise((resolve, reject) => {
+            this.sheetsDb.insert(
+                { name, createdAt: new Date(), updatedAt: new Date() },
+                (err, doc) => {
+                    if (err) reject(err);
+                    else resolve(doc);
+                }
+            );
+        });
+    }
+
+    /**
+     * Get all sheets sorted by createdAt ascending (home first)
+     * @returns {Promise<Array>}
+     */
+    getAllSheets() {
+        return new Promise((resolve, reject) => {
+            this.sheetsDb.find({}).sort({ createdAt: 1 }).exec((err, docs) => {
+                if (err) reject(err);
+                else resolve(docs);
+            });
+        });
+    }
+
+    /**
+     * Delete a sheet by id
+     * @param {string} id
+     * @returns {Promise<number>} Number of docs removed
+     */
+    deleteSheet(id) {
+        return new Promise((resolve, reject) => {
+            this.sheetsDb.remove({ _id: id }, {}, (err, numRemoved) => {
+                if (err) reject(err);
+                else resolve(numRemoved);
+            });
+        });
+    }
+
+    /**
+     * Rename a sheet
+     * @param {string} id
+     * @param {string} newName
+     * @returns {Promise<number>} Number of docs updated
+     */
+    renameSheet(id, newName) {
+        return new Promise((resolve, reject) => {
+            this.sheetsDb.update(
+                { _id: id },
+                { $set: { name: newName, updatedAt: new Date() } },
+                {},
+                (err, numUpdated) => {
+                    if (err) reject(err);
+                    else resolve(numUpdated);
+                }
+            );
+        });
+    }
+
+    // ── Tables ───────────────────────────────────────────────────────────────────
 
     /**
      * Create a new table
-     * @param {Object} tableData - { name, type, columns, data }
+     * @param {Object} tableData - { name, sheetId, columns, data, ... }
      * @returns {Promise<Object>} Created table with _id
      */
     createTable(tableData) {
         return new Promise((resolve, reject) => {
             const newTable = {
                 name: tableData.name || 'Untitled Table',
-                type: tableData.type || 'recent',
+                sheetId: tableData.sheetId,
                 columns: tableData.columns || 3,
                 data: tableData.data || [['', '', '']],
                 pinned: tableData.pinned || false,
@@ -72,13 +168,13 @@ class DatabaseService {
     }
 
     /**
-     * Get tables filtered by type
-     * @param {String} type - 'recent', 'starred', or 'archived'
-     * @returns {Promise<Array>} Filtered tables
+     * Get tables belonging to a sheet
+     * @param {string} sheetId
+     * @returns {Promise<Array>} Tables sorted by pinned, sortOrder, createdAt
      */
-    getTablesByType(type) {
+    getTablesBySheetId(sheetId) {
         return new Promise((resolve, reject) => {
-            this.db.find({ type })
+            this.db.find({ sheetId })
                 .sort({ pinned: -1, sortOrder: -1, createdAt: -1 })
                 .exec((err, docs) => {
                     if (err) reject(err);

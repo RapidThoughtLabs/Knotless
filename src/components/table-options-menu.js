@@ -2,52 +2,40 @@
  * Table Options Menu — RTL Knotless V2
  *
  * The ⋯ button dropdown per TableNote.
- * Shared singleton — repositions to the triggering button each time.
+ * Extends OptionsMenu base for shared show/hide/position logic.
  *
  * Actions dispatched: 'pin', 'unpin', 'add-col', 'remove-col',
- *   'toggle-checklist', 'star', 'archive', 'unarchive', 'move-recents',
- *   'delete-row', 'delete-table'
+ *   'toggle-checklist', 'delete-table', 'table-highlight', 'clear-table-highlight'
  */
 
-export class TableOptionsMenu {
+import { OptionsMenu } from './options-menu-base.js';
+import { HIGHLIGHT_COLORS } from './context-menu.js';
+
+const TABLE_SWATCH_HTML = HIGHLIGHT_COLORS.map(h =>
+    `<div class="ctx-swatch" data-highlight="${h.key}" title="${h.label} Highlight" style="background:${h.color};"></div>`
+).join('') + `<div class="ctx-swatch ctx-swatch--clear" data-action="clear-table-highlight" title="Remove highlight">✕</div>`;
+
+export class TableOptionsMenu extends OptionsMenu {
     /**
-     * @param {Function} onAction - (action, tableId, extra?) => void
+     * @param {Function} onAction - (action, tableId) => void
      */
     constructor(onAction) {
-        this._onAction = onAction || (() => { });
-        this._el = null;
-        this._tableId = null;
-        this._tableData = null;
-    }
-
-    mount() {
-        this._el = document.createElement('div');
-        this._el.id = 'table-options-menu';
-        this._el.className = 'ctx-menu ctx-menu--hidden';
-        document.body.appendChild(this._el);
-
-        // Hide on outside click
-        document.addEventListener('click', (e) => {
-            if (this._el && !this._el.contains(e.target)) this.hide();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') this.hide();
-        });
+        // Wrap so base class signature (action, data) maps to (action, tableId)
+        super('table-options-menu', (action, data) => onAction(action, data.tableId));
     }
 
     /**
      * Show options menu for a given table.
      * @param {HTMLElement} anchorEl - The ⋯ button
      * @param {string} tableId
-     * @param {Object} tableData - { pinned, type, checklist, columns }
+     * @param {Object} tableData - { pinned, checklist, columns }
      */
     show(anchorEl, tableId, tableData) {
-        this._tableId = tableId;
-        this._tableData = tableData;
+        super.show(anchorEl, { tableId, ...tableData }, 'right');
+    }
 
-        const { pinned, type, checklist, columns } = tableData;
-
-        this._el.innerHTML = `
+    buildHTML({ pinned, checklist, columns }) {
+        return `
             <div class="ctx-item" data-action="${pinned ? 'unpin' : 'pin'}">
                 ${pinned ? 'unpin ↓' : 'pin to top ↑'}
             </div>
@@ -64,57 +52,45 @@ export class TableOptionsMenu {
                 <div class="toggle toggle-sm ${checklist ? 'on' : ''}"></div>
             </div>
             <div class="ctx-divider"></div>
-            ${type === 'recent' ? `
-                <div class="ctx-item" data-action="star">add to starred ★</div>
-                <div class="ctx-item" data-action="archive">send to archives</div>
-            ` : ''}
-            ${type === 'starred' ? `
-                <div class="ctx-item" data-action="move-recents">move to recents</div>
-                <div class="ctx-item" data-action="archive">send to archives</div>
-            ` : ''}
-            ${type === 'archives' ? `
-                <div class="ctx-item" data-action="star">add to starred ★</div>
-                <div class="ctx-item" data-action="move-recents">move to recents</div>
-            ` : ''}
+            <div class="ctx-item ctx-highlight-trigger">highlight <span class="ctx-arrow">›</span></div>
+            <div class="ctx-swatches">${TABLE_SWATCH_HTML}</div>
             <div class="ctx-divider"></div>
-            <div class="ctx-item" data-action="delete-row">delete last row</div>
             <div class="ctx-item ctx-danger" data-action="delete-table">delete table</div>
         `;
+    }
 
-        this._el.classList.remove('ctx-menu--hidden');
-
-        // Position below anchor
-        const rect = anchorEl.getBoundingClientRect();
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        let left = rect.right - 164;
-        let top = rect.bottom + 4;
-        if (left < 8) left = 8;
-        if (left + 164 > vw) left = vw - 168;
-        if (top + this._el.offsetHeight > vh) top = rect.top - this._el.offsetHeight - 4;
-
-        this._el.style.left = `${left}px`;
-        this._el.style.top = `${top}px`;
-
-        // Bind clicks
+    /** Catch swatch clicks before they hit the default action handler */
+    show(anchorEl, tableId, tableData) {
+        super.show(anchorEl, { tableId, ...tableData }, 'right');
+        
+        // Override onclick to handle swatches properly
         this._el.onclick = (e) => {
+            const swatch = e.target.closest('[data-highlight]');
+            if (swatch) {
+                const key = swatch.dataset.highlight;
+                this._onAction('table-highlight', { tableId: this._data.tableId, key });
+                this.hide();
+                return;
+            }
+
             const item = e.target.closest('[data-action]');
             if (!item) return;
             const action = item.dataset.action;
-            this._onAction(action, this._tableId);
+            if (item.classList.contains('ctx-disabled')) return;
+            
+            // For clear-table-highlight, pass the action with tableId
+            if (action === 'clear-table-highlight') {
+                this._onAction(action, { tableId: this._data.tableId });
+            } else {
+                this._onAction(action, { tableId: this._data.tableId });
+            }
             this.hide();
         };
-    }
-
-    hide() {
-        this._el?.classList.add('ctx-menu--hidden');
-        this._tableId = null;
     }
 
     /** Update column count display without hiding */
     updateColCount(count) {
         const span = this._el?.querySelector('.ctx-col-count');
         if (span) span.textContent = count;
-        this._tableData = { ...this._tableData, columns: count };
     }
 }

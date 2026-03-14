@@ -12,24 +12,36 @@ import { AppFooter } from './components/app-footer.js';
 import { TableCard } from './components/table-card.js';
 import { CellContextMenu } from './components/context-menu.js';
 import { TableOptionsMenu } from './components/table-options-menu.js';
+import { SheetOptionsMenu } from './components/sheet-options-menu.js';
+import { SearchBar } from './components/search-bar.js';
 import { SettingsModal, applyAnimationLevel, applyFontSize } from './components/settings-modal.js';
-import { showAddTableModal, showConfirm } from './components/modals.js';
+import { showAddTableModal, showAddSheetModal, showConfirm, showAlert, showImportConflictModal } from './components/modals.js';
+import { showExportModal } from './components/export-modal.js';
 import { showToast, setToastPosition } from './components/toast.js';
+
+// ── File-icons-js: expose globally so table-card.js can look up icon classes ──
+import * as fileIconsModule from 'file-icons-js';
+import 'file-icons-js/css/style.css';
+window.fileIcons = fileIconsModule;
 
 // ── Shorthand for Electron IPC ───────────────────────────────────────────────
 const db = () => window.electron?.database;
 const settings = () => window.electron?.settings;
+const sheets = () => window.electron?.sheets;
 
 // ── App State ────────────────────────────────────────────────────────────────
-let currentFilter = 'recents';
-let tables = [];         // current array of loaded table docs
-let tableCards = new Map();  // tableId → TableCard instance
+let currentSheet = null;    // active sheet doc { _id, name }
+let allSheets = [];         // cached list of all sheet docs
+let tables = [];            // current array of loaded table docs
+let tableCards = new Map(); // tableId → TableCard instance
 
 // ── Components (module-level singletons) ─────────────────────────────────────
 let topbar;
 let appFooter;
 let cellCtxMenu;
 let tableOptsMenu;
+let sheetOptsMenu;
+let searchBar;
 let settingsModal;
 let themeEngine;
 
@@ -86,28 +98,111 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsModal = new SettingsModal(themeEngine, settings());
     settingsModal.mount();
 
-    // 7 — Wire topbar events
-    document.addEventListener('rtl:filter-change', (e) => {
-        currentFilter = e.detail.filter;
+    // 7 — Sheet options menu (singleton — same ctx-menu style as table options)
+    sheetOptsMenu = new SheetOptionsMenu(handleSheetAction);
+    sheetOptsMenu.mount();
+
+    // 8 — Search bar (mounted into the search-bar-slot in the topbar)
+    searchBar = new SearchBar({
+        getTables: () => tables,
+        getAllTables: () => db().getAll(),
+        getSheets: () => allSheets,
+    });
+    const searchSlot = document.getElementById('search-bar-slot');
+    if (searchSlot) searchBar.mount(searchSlot);
+
+    // 9 — Wire topbar events
+    document.addEventListener('rtl:sheet-change', (e) => {
+        currentSheet = e.detail.sheet;
+        persistLastSheet(currentSheet);
         loadTables();
-        topbar.setFilter(currentFilter);
     });
     document.addEventListener('rtl:add-click', handleAddTable);
+
+    // Search bar expands a collapsed table when navigating to a match inside it
+    document.addEventListener('rtl:table-expand', (e) => {
+        handleCollapse(e.detail.tableId, false);
+    });
+    document.addEventListener('rtl:add-sheet-click', handleAddSheet);
     document.addEventListener('rtl:settings-click', () => settingsModal.toggle());
 
-    // 8 — Initial table load
-    await loadTables();
+    // Sheet options button → toggle sheet menu open/close
+    document.addEventListener('rtl:sheet-options-click', (e) => {
+        const { anchorEl, sheet } = e.detail;
+        if (sheetOptsMenu.isVisible) {
+            sheetOptsMenu.hide();
+        } else {
+            anchorEl.classList.add('open');
+            sheetOptsMenu.show(anchorEl, sheet, 'left');
+        }
+    });
+
+    // 10 — Global keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        const mod = e.metaKey || e.ctrlKey;
+        if (!mod) return;
+
+        if (e.key === 'f' || e.key === 'F') {
+            e.preventDefault();
+            topbar.hideSheetOptsBtn();
+            searchBar.open();
+            return;
+        }
+
+        if (e.key === 'g' || e.key === 'G') {
+            e.preventDefault();
+            e.shiftKey ? searchBar.prev() : searchBar.next();
+        }
+    });
+
+    // 8 — Global drag-and-drop prevention: stop Electron from navigating away
+    //     when a file is dropped outside a cell. Cells have their own handlers
+    //     that stopPropagation() and actually ingest the file.
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => e.preventDefault());
+
+    // 9 — Initialise sheets + load tables
+    await initSheets();
 });
+
+// ── Sheet Initialisation ──────────────────────────────────────────────────────
+
+async function initSheets() {
+    try {
+        // Create default "home" sheet only if the DB is completely empty
+        await sheets().ensureHome();
+        // Load all sheets
+        allSheets = await sheets().getAll();
+        // Restore the last open sheet, falling back to the first sheet
+        let lastSheetId = null;
+        try {
+            const s = await settings().get();
+            lastSheetId = s?.general?.lastOpenSheetId ?? null;
+        } catch { }
+        currentSheet = (lastSheetId && allSheets.find(s => s._id === lastSheetId)) || allSheets[0];
+        // Push to topbar
+        topbar.setSheets(allSheets);
+        topbar.setSheet(currentSheet);
+        // Load tables for active sheet
+        await loadTables();
+    } catch (err) {
+        console.error('[App] initSheets failed:', err);
+        showToast('failed to load sheets', 'error');
+    }
+}
+
+// ── Persist active sheet id to settings ──────────────────────────────────────
+
+async function persistLastSheet(sheet) {
+    try { await settings().update('general.lastOpenSheetId', sheet._id); } catch { }
+}
 
 // ── Table Loading ─────────────────────────────────────────────────────────────
 
 async function loadTables() {
+    if (!currentSheet) return;
     try {
-        // Map filter label → DB type
-        const typeMap = { recents: 'recent', starred: 'starred', archives: 'archives' };
-        const dbType = typeMap[currentFilter] ?? 'recent';
-
-        tables = await db().getByType(dbType);
+        tables = await db().getBySheetId(currentSheet._id);
         renderAll();
     } catch (err) {
         console.error('[App] Failed to load tables:', err);
@@ -124,7 +219,7 @@ function renderAll() {
         content.innerHTML = `
             <div class="empty-state">
                 <div class="empty-title">no tables yet</div>
-                <div class="empty-sub">press <span>+ add</span> to create one</div>
+                <div class="empty-sub">press <span>* add</span> to create one</div>
             </div>`;
     } else {
         tables.forEach(table => {
@@ -135,6 +230,9 @@ function renderAll() {
                 onContextMenu: (e, cellEl) => {
                     cellCtxMenu.show(e.clientX, e.clientY, cellEl);
                 },
+                onFileLongPress: (cellEl, x, y) => {
+                    cellCtxMenu.show(x, y, cellEl);
+                },
                 onNameChange: handleNameChange,
                 onAddRow: handleAddRow,
                 onOptions: (btnEl, tableId, tableData) => {
@@ -142,6 +240,7 @@ function renderAll() {
                 },
                 onMoveUp: handleMoveUp,
                 onResize: handleResize,
+                onCollapse: handleCollapse,
             });
             const el = card.create();
             tableCards.set(table._id, card);
@@ -150,7 +249,7 @@ function renderAll() {
     }
 
     // Update footer
-    appFooter.update({ count: tables.length, filter: currentFilter });
+    appFooter.update({ count: tables.length, filter: currentSheet?.name ?? 'home' });
 }
 
 // ── Cell Handlers ─────────────────────────────────────────────────────────────
@@ -211,6 +310,17 @@ async function handleNameChange(tableId, newName) {
         await db().update(tableId, { name: newName });
     } catch (err) {
         console.error('[App] Name update failed:', err);
+    }
+}
+
+async function handleCollapse(tableId, collapsed) {
+    const table = tables.find(t => t._id === tableId);
+    if (!table) return;
+    table.collapsed = collapsed;
+    try {
+        await db().update(tableId, { collapsed });
+    } catch (err) {
+        console.error('[App] Collapse update failed:', err);
     }
 }
 
@@ -319,12 +429,136 @@ async function handleCellAction(action, cellEl, extra) {
     if (!table) return;
 
     const IMG_PREFIX = 'IMG:';
+    const FILE_PREFIX = 'FILE:';
     const isImageCell = (v) => typeof v === 'string' && v.startsWith(IMG_PREFIX);
+    const isFileCell = (v) => typeof v === 'string' && v.startsWith(FILE_PREFIX);
+    const parseFilePath = (v) => v.slice(FILE_PREFIX.length).split('|')[0];
+    const parseFileName = (v) => v.slice(FILE_PREFIX.length).split('|')[1] || parseFilePath(v).split('/').pop();
+    const TEXT_EXTS = new Set(['txt', 'md', 'json', 'csv', 'xml', 'yaml', 'yml', 'toml', 'js', 'ts', 'jsx', 'tsx', 'py', 'rb', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'cs', 'swift', 'kt', 'sh', 'bash', 'zsh', 'sql', 'html', 'css', 'scss', 'vue', 'svelte', 'lua', 'r', 'php', 'env', 'ini', 'cfg', 'conf', 'log', 'gitignore', 'dockerfile']);
+    const isTextFile = (name) => TEXT_EXTS.has((name.split('.').pop() || '').toLowerCase());
     const currentVal = table.data?.[row]?.[col] ?? '';
 
     switch (action) {
+        case 'open-url': {
+            // Add https:// if missing (handles bare domains like 'github.com')
+            let url = currentVal.trim();
+            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+            try {
+                const result = await window.electron.openExternal(url);
+                if (result?.ok === false) throw new Error(result.error);
+            } catch (err) {
+                console.error('[open-url] failed:', err);
+                showToast('could not open URL', 'error');
+            }
+            break;
+        }
+
+        case 'run': {
+            // Strip leading $ prompt if present (e.g. "$ npm install" → "npm install")
+            const cmd = currentVal.replace(/^\$\s+/, '').trim();
+            if (!cmd) return;
+            try {
+                const result = await window.electron.commands.run(cmd);
+                if (result?.ok === false) throw new Error(result.error);
+                showToast('running in terminal ▶', 'success');
+            } catch (err) {
+                console.error('[run] failed:', err);
+                showToast('could not open terminal', 'error');
+            }
+            break;
+        }
+
+        case 'open': {
+            let pathToOpen = null;
+            if (isFileCell(currentVal)) {
+                pathToOpen = parseFilePath(currentVal);
+            } else if (isImageCell(currentVal)) {
+                pathToOpen = currentVal.slice(IMG_PREFIX.length);
+            }
+            if (!pathToOpen) return;
+            try {
+                await window.electron.files.open(pathToOpen);
+            } catch (err) {
+                console.error('[open] failed:', err);
+                showToast('could not open file', 'error');
+            }
+            break;
+        }
+
+        case 'reveal-path': {
+            const pathToReveal = currentVal.trim();
+            if (!pathToReveal) return;
+            try {
+                await window.electron.files.reveal(pathToReveal);
+            } catch (err) {
+                console.error('[reveal-path] failed:', err);
+                showToast('could not open location', 'error');
+            }
+            break;
+        }
+
+        case 'copy-file': {
+            // Native file copy via Electron — pasteable in Finder/Explorer
+            if (!isFileCell(currentVal)) return;
+            const filePath = parseFilePath(currentVal);
+            const fileName = parseFileName(currentVal);
+            try {
+                await window.electron.clipboard.copyFile(filePath);
+                showToast(`copied "${fileName}"`, 'success');
+            } catch (err) {
+                console.error('[copy-file] failed:', err);
+                showToast('copy failed — file may not exist', 'error');
+            }
+            break;
+        }
+
+        case 'copy-path': {
+            if (!isFileCell(currentVal)) return;
+            const filePath = parseFilePath(currentVal);
+            const fileName = parseFileName(currentVal);
+            try {
+                await navigator.clipboard.writeText(filePath);
+                showToast(`copied path for "${fileName}"`, 'success');
+            } catch { showToast('copy failed', 'error'); }
+            break;
+        }
+
+        case 'copy-text': {
+            if (!isFileCell(currentVal)) return;
+            const filePath = parseFilePath(currentVal);
+            const fileName = parseFileName(currentVal);
+            if (isTextFile(fileName)) {
+                try {
+                    const content = await window.electron.files.readText(filePath);
+                    await navigator.clipboard.writeText(content);
+                    showToast(`copied contents of "${fileName}"`, 'success');
+                } catch { showToast('copy failed', 'error'); }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(filePath);
+                    showToast(`copied path (binary file)`, 'success');
+                } catch { showToast('copy failed', 'error'); }
+            }
+            break;
+        }
+
         case 'copy': {
-            if (isImageCell(currentVal)) {
+            if (isFileCell(currentVal)) {
+                const filePath = parseFilePath(currentVal);
+                const fileName = parseFileName(currentVal);
+                if (isTextFile(fileName)) {
+                    try {
+                        const content = await window.electron.files.readText(filePath);
+                        await navigator.clipboard.writeText(content);
+                        showToast(`copied contents of "${fileName}"`, 'success');
+                    } catch { showToast('copy failed', 'error'); }
+                } else {
+                    try {
+                        await navigator.clipboard.writeText(filePath);
+                        showToast(`copied path for "${fileName}"`, 'success');
+                    } catch { showToast('copy failed', 'error'); }
+                }
+            } else if (isImageCell(currentVal)) {
                 try {
                     const path = currentVal.slice(IMG_PREFIX.length);
                     const url = await window.electron.pathUtils.toFileUrl(path);
@@ -341,9 +575,9 @@ async function handleCellAction(action, cellEl, extra) {
         }
 
         case 'paste': {
-            // ── RULE: image cells are read-only ──────────────────────────────
-            if (isImageCell(currentVal)) {
-                showToast('image cells are read-only — long press to copy', 'error');
+            // ── RULE: image/file cells are read-only ─────────────────────────
+            if (isImageCell(currentVal) || isFileCell(currentVal)) {
+                showToast('cell is read-only — long press to copy', 'error');
                 return;
             }
             try {
@@ -376,24 +610,97 @@ async function handleCellAction(action, cellEl, extra) {
             break;
         }
 
+
         case 'clear': {
-            if (isImageCell(currentVal)) {
-                const imgPath = currentVal.slice(IMG_PREFIX.length);
-                try { await window.electron.images.delete(imgPath); } catch { }
+            const selectedCells = document.querySelectorAll('.cell-selected');
+            if (selectedCells.length > 0) {
+                const count = selectedCells.length;
+                for (const selCell of selectedCells) {
+                    const selTableId = selCell.dataset.tableId;
+                    const selRow = parseInt(selCell.dataset.row);
+                    const selCol = parseInt(selCell.dataset.col);
+                    const selTable = tables.find(t => t._id === selTableId);
+                    if (!selTable) continue;
+                    const selVal = selTable.data?.[selRow]?.[selCol] ?? '';
+                    if (isFileCell(selVal)) {
+                        try { await window.electron.files.delete(parseFilePath(selVal)); } catch { }
+                    } else if (isImageCell(selVal)) {
+                        try { await window.electron.images.delete(selVal.slice(IMG_PREFIX.length)); } catch { }
+                    }
+                    await handleCellUpdate(selTableId, selRow, selCol, '');
+                }
+                await loadTables();
+                showToast(`cleared ${count} cell${count > 1 ? 's' : ''}`, 'info');
+            } else {
+                if (isFileCell(currentVal)) {
+                    try { await window.electron.files.delete(parseFilePath(currentVal)); } catch { }
+                } else if (isImageCell(currentVal)) {
+                    try { await window.electron.images.delete(currentVal.slice(IMG_PREFIX.length)); } catch { }
+                }
+                await handleCellUpdate(tableId, row, col, '');
+                await loadTables();
+                showToast('cell cleared', 'info');
             }
-            await handleCellUpdate(tableId, row, col, '');
-            await loadTables();
-            showToast('cell cleared', 'info');
             break;
         }
 
         case 'highlight': {
-            await handleHighlight(tableId, row, col, extra);
+            const selectedForHl = document.querySelectorAll('.cell-selected');
+            if (selectedForHl.length > 0) {
+                // Batch: group updates per table to minimise DB writes
+                const tableUpdates = new Map(); // tableId → highlights object
+                for (const selCell of selectedForHl) {
+                    const selTableId = selCell.dataset.tableId;
+                    const selRow     = parseInt(selCell.dataset.row);
+                    const selCol     = parseInt(selCell.dataset.col);
+                    const selTable   = tables.find(t => t._id === selTableId);
+                    if (!selTable) continue;
+                    selTable.highlights = selTable.highlights ?? {};
+                    selTable.highlights[`${selRow}-${selCol}`] = extra;
+                    // Update the cell class in-place for immediate feedback
+                    tableCards.get(selTableId)?.updateHighlight(selRow, selCol, extra);
+                    tableUpdates.set(selTableId, selTable.highlights);
+                }
+                try {
+                    await Promise.all([...tableUpdates.entries()].map(
+                        ([tid, hls]) => db().update(tid, { highlights: hls })
+                    ));
+                    showToast(`highlighted ${selectedForHl.length} cell${selectedForHl.length > 1 ? 's' : ''}`, 'success');
+                } catch (err) {
+                    console.error('[App] Batch highlight failed:', err);
+                }
+            } else {
+                await handleHighlight(tableId, row, col, extra);
+            }
             break;
         }
 
         case 'clear-highlight': {
-            await handleHighlight(tableId, row, col, null);
+            const selectedForChk = document.querySelectorAll('.cell-selected');
+            if (selectedForChk.length > 0) {
+                const tableUpdates = new Map();
+                for (const selCell of selectedForChk) {
+                    const selTableId = selCell.dataset.tableId;
+                    const selRow     = parseInt(selCell.dataset.row);
+                    const selCol     = parseInt(selCell.dataset.col);
+                    const selTable   = tables.find(t => t._id === selTableId);
+                    if (!selTable) continue;
+                    selTable.highlights = selTable.highlights ?? {};
+                    delete selTable.highlights[`${selRow}-${selCol}`];
+                    tableCards.get(selTableId)?.updateHighlight(selRow, selCol, null);
+                    tableUpdates.set(selTableId, selTable.highlights);
+                }
+                try {
+                    await Promise.all([...tableUpdates.entries()].map(
+                        ([tid, hls]) => db().update(tid, { highlights: hls })
+                    ));
+                    showToast(`cleared highlights on ${selectedForChk.length} cell${selectedForChk.length > 1 ? 's' : ''}`, 'info');
+                } catch (err) {
+                    console.error('[App] Batch clear-highlight failed:', err);
+                }
+            } else {
+                await handleHighlight(tableId, row, col, null);
+            }
             break;
         }
 
@@ -462,11 +769,16 @@ async function handleTableAction(action, tableId) {
                 );
                 if (!ok) return;
             }
-            // Clean up images in the removed column
+            // Clean up images AND files in the removed column
             for (const row of table.data) {
                 const val = row[lastColIdx];
-                if (typeof val === 'string' && val.startsWith('IMG:')) {
-                    try { await window.electron.images.delete(val.slice(4)); } catch { }
+                if (typeof val === 'string') {
+                    if (val.startsWith('IMG:')) {
+                        try { await window.electron.images.delete(val.slice(4)); } catch { }
+                    } else if (val.startsWith('FILE:')) {
+                        const filePath = val.slice(5).split('|')[0];
+                        try { await window.electron.files.delete(filePath); } catch { }
+                    }
                 }
             }
             // Remove highlights for the removed column
@@ -490,43 +802,38 @@ async function handleTableAction(action, tableId) {
             break;
         }
 
-        case 'star': {
-            await db().update(tableId, { type: 'starred' });
-            showToast('moved to starred ★', 'success');
-            await loadTables();
-            break;
-        }
-
-        case 'archive': {
-            await db().update(tableId, { type: 'archives' });
-            showToast('sent to archives', 'info');
-            await loadTables();
-            break;
-        }
-
-        case 'move-recents': {
-            await db().update(tableId, { type: 'recent' });
-            showToast('moved to recents', 'info');
-            await loadTables();
-            break;
-        }
-
-        case 'delete-row': {
-            if ((table.data?.length ?? 0) <= 1) {
-                showToast('cannot delete — only 1 row remaining', 'error');
-                return;
+        case 'table-highlight': {
+            const colorKey = tableId.key; // action passes { tableId, key } from options menu
+            const tId = tableId.tableId; // action passes { tableId, key } from options menu
+            const targetTable = tables.find(t => t._id === tId);
+            if (!targetTable) return;
+            try {
+                await db().update(tId, { highlight: colorKey });
+                targetTable.highlight = colorKey;
+                // Update the table card directly
+                tableCards.get(tId)?.updateTableHighlight(colorKey);
+                showToast('table highlighted', 'success');
+            } catch (err) {
+                console.error('[App] handleTableAction highlight failed:', err);
+                showToast('failed to highlight table', 'error');
             }
-            const lastRow = table.data[table.data.length - 1];
-            const hasData = lastRow.some(v => v && v.trim());
-            if (hasData) {
-                const ok = await showConfirm('delete last row? data will be <strong>lost permanently.</strong>', 'delete', true);
-                if (!ok) return;
+            break;
+        }
+
+        case 'clear-table-highlight': {
+            const tId = tableId.tableId; // action passes { tableId } from options menu
+            const targetTable = tables.find(t => t._id === tId);
+            if (!targetTable) return;
+            try {
+                await db().update(tId, { highlight: null });
+                delete targetTable.highlight;
+                // Update the table card directly
+                tableCards.get(tId)?.updateTableHighlight(null);
+                showToast('highlight removed', 'info');
+            } catch (err) {
+                console.error('[App] handleTableAction clear highlight failed:', err);
+                showToast('failed to clear highlight', 'error');
             }
-            table.data.pop();
-            if (table.checked?.length > 0) table.checked.pop();
-            await db().update(tableId, { data: table.data, checked: table.checked ?? [] });
-            showToast('last row deleted', 'info');
-            await loadTables();
             break;
         }
 
@@ -536,11 +843,16 @@ async function handleTableAction(action, tableId) {
                 'delete', true
             );
             if (!ok) return;
-            // Clean up all images
+            // Clean up all images and files
             for (const row of (table.data ?? [])) {
                 for (const val of row) {
-                    if (typeof val === 'string' && val.startsWith('IMG:')) {
-                        try { await window.electron.images.delete(val.slice(4)); } catch { }
+                    if (typeof val === 'string') {
+                        if (val.startsWith('IMG:')) {
+                            try { await window.electron.images.delete(val.slice(4)); } catch { }
+                        } else if (val.startsWith('FILE:')) {
+                            const filePath = val.slice(5).split('|')[0];
+                            try { await window.electron.files.delete(filePath); } catch { }
+                        }
                     }
                 }
             }
@@ -567,7 +879,7 @@ async function handleAddTable() {
     try {
         await db().create({
             name,
-            type: 'recent',
+            sheetId: currentSheet._id,
             columns: defaultColumns,
             data: [Array(defaultColumns).fill('')],
             pinned: false,
@@ -576,14 +888,300 @@ async function handleAddTable() {
             highlights: {},
         });
         showToast('table created', 'success');
-        // Switch to recents and reload
-        if (currentFilter !== 'recents') {
-            currentFilter = 'recents';
-            topbar.setFilter('recents');
-        }
         await loadTables();
     } catch (err) {
         console.error('[App] Create table failed:', err);
         showToast('failed to create table', 'error');
     }
 }
+
+// ── Add Sheet ─────────────────────────────────────────────────────────────────
+
+async function handleAddSheet() {
+    const name = await showAddSheetModal();
+    if (name === null) return; // cancelled
+
+    try {
+        const newSheet = await sheets().create(name);
+        // Refresh sheets list
+        allSheets = await sheets().getAll();
+        topbar.setSheets(allSheets);
+        // Switch to the new sheet
+        currentSheet = newSheet;
+        topbar.setSheet(currentSheet);
+        persistLastSheet(currentSheet);
+        await loadTables();
+        showToast('sheet created', 'success');
+    } catch (err) {
+        console.error('[App] Create sheet failed:', err);
+        showToast('failed to create sheet', 'error');
+    }
+}
+
+// ── Sheet Options Actions ─────────────────────────────────────────────────────
+
+async function handleSheetAction(action, sheet) {
+    switch (action) {
+
+        case 'search': {
+            // Open search bar — topbar hides ⋯ button, SearchBar expands into slot
+            topbar.hideSheetOptsBtn();
+            searchBar.open();
+            break;
+        }
+
+        case 'rename': {
+            // Reuse the add-sheet modal, pre-filled with current name
+            const newName = await showAddSheetModal(sheet?.name ?? '');
+            if (newName === null || newName === sheet?.name) return; // cancelled or unchanged
+            try {
+                await sheets().rename(sheet._id, newName);
+                // Update local state
+                const s = allSheets.find(x => x._id === sheet._id);
+                if (s) s.name = newName;
+                if (currentSheet?._id === sheet._id) {
+                    currentSheet.name = newName;
+                    topbar.updateSheetLabel(currentSheet);
+                } else {
+                    topbar.setSheets(allSheets);
+                }
+                showToast('sheet renamed', 'success');
+            } catch (err) {
+                console.error('[App] Rename sheet failed:', err);
+                showToast('failed to rename sheet', 'error');
+            }
+            break;
+        }
+
+        case 'clear': {
+            const ok = await showConfirm(
+                `clear <strong>${sheet?.name}</strong>? all tables will be <strong>permanently deleted.</strong>`,
+                'clear', true
+            );
+            if (!ok) return;
+            try {
+                // Delete all tables in this sheet
+                const sheetTables = await db().getBySheetId(sheet._id);
+                for (const t of sheetTables) {
+                    // Clean up images and files first
+                    for (const row of (t.data ?? [])) {
+                        for (const val of row) {
+                            if (typeof val === 'string') {
+                                if (val.startsWith('IMG:')) {
+                                    try { await window.electron.images.delete(val.slice(4)); } catch { }
+                                } else if (val.startsWith('FILE:')) {
+                                    try { await window.electron.files.delete(val.slice(5).split('|')[0]); } catch { }
+                                }
+                            }
+                        }
+                    }
+                    await db().delete(t._id);
+                }
+                showToast('sheet cleared', 'info');
+                await loadTables();
+            } catch (err) {
+                console.error('[App] Clear sheet failed:', err);
+                showToast('failed to clear sheet', 'error');
+            }
+            break;
+        }
+
+        case 'delete': {
+            const ok = await showConfirm(
+                `delete <strong>${sheet?.name}</strong> and all its tables? this <strong>cannot be undone.</strong>`,
+                'delete', true
+            );
+            if (!ok) return;
+            try {
+                // Delete all tables in the sheet first
+                const sheetTables = await db().getBySheetId(sheet._id);
+                for (const t of sheetTables) {
+                    for (const row of (t.data ?? [])) {
+                        for (const val of row) {
+                            if (typeof val === 'string') {
+                                if (val.startsWith('IMG:')) {
+                                    try { await window.electron.images.delete(val.slice(4)); } catch { }
+                                } else if (val.startsWith('FILE:')) {
+                                    try { await window.electron.files.delete(val.slice(5).split('|')[0]); } catch { }
+                                }
+                            }
+                        }
+                    }
+                    await db().delete(t._id);
+                }
+                // Delete the sheet itself
+                await sheets().delete(sheet._id);
+                showToast('sheet deleted', 'error');
+                // Refresh sheet list — if none remain, create a blank "home" fallback
+                allSheets = await sheets().getAll();
+                if (allSheets.length === 0) {
+                    await sheets().ensureHome();
+                    allSheets = await sheets().getAll();
+                }
+                currentSheet = allSheets[0];
+                topbar.setSheets(allSheets);
+                topbar.setSheet(currentSheet);
+                persistLastSheet(currentSheet);
+                await loadTables();
+            } catch (err) {
+                console.error('[App] Delete sheet failed:', err);
+                showToast('failed to delete sheet', 'error');
+            }
+            break;
+        }
+
+        case 'export': {
+            // 1 — Show format picker (json / zip / cancel)
+            const choice = await showExportModal();
+            if (!choice) break;
+
+            const ei = window.electron?.exportImport;
+            if (!ei) { showToast('export not available', 'error'); break; }
+
+            const sheetNameSafe = (currentSheet?.name ?? 'untitled').replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+            if (choice === 'json') {
+                const savePath = await ei.saveDialog({
+                    title: 'Export Sheet',
+                    defaultPath: `${sheetNameSafe}.ktl.json`,
+                    filters: [{ name: 'Knotless JSON', extensions: ['ktl.json'] }],
+                });
+                if (!savePath) break; // user cancelled Save dialog
+                showToast('exporting…', 'info');
+                try {
+                    const result = await ei.exportJson(currentSheet, tables, savePath);
+                    if (result?.ok) {
+                        showToast('exported as json ✓', 'success');
+                    } else {
+                        showToast('export failed', 'error');
+                    }
+                } catch (err) {
+                    console.error('[App] export:json failed:', err);
+                    showToast('export failed', 'error');
+                }
+
+            } else if (choice === 'zip') {
+                const savePath = await ei.saveDialog({
+                    title: 'Export Sheet Bundle',
+                    defaultPath: `${sheetNameSafe}.ktl.zip`,
+                    filters: [{ name: 'Knotless Bundle', extensions: ['ktl.zip'] }],
+                });
+                if (!savePath) break; // user cancelled Save dialog
+                showToast('exporting…', 'info');
+                try {
+                    const result = await ei.exportZip(currentSheet, tables, savePath);
+                    if (result?.error === 'blob_cap_exceeded') {
+                        await showAlert(
+                            `export failed — blobs exceed the 250 mb limit<br>
+                            <span style="font-size:10px;color:var(--text-dim)">
+                            total blob size: ${result.totalMB} mb — reduce images/files and try again
+                            </span>`
+                        );
+                    } else if (result?.ok) {
+                        showToast('exported as bundle ✓', 'success');
+                    } else {
+                        showToast('export failed', 'error');
+                    }
+                } catch (err) {
+                    console.error('[App] export:zip failed:', err);
+                    showToast('export failed', 'error');
+                }
+            }
+            break;
+        }
+
+        case 'import': {
+            const ei = window.electron?.exportImport;
+            if (!ei) { showToast('import not available', 'error'); break; }
+
+            // 1 — Open file picker
+            const filePath = await ei.openDialog({
+                title: 'Import Sheet',
+                filters: [{ name: 'Knotless Files', extensions: ['ktl.json', 'ktl.zip'] }],
+                properties: ['openFile'],
+            });
+            if (!filePath) break; // cancelled
+
+            // 2 — Parse and validate
+            let result;
+            try {
+                result = await ei.importSheet(filePath);
+            } catch (err) {
+                console.error('[App] import:sheet failed:', err);
+                showToast('import failed', 'error');
+                break;
+            }
+
+            if (result?.error === 'invalid') {
+                await showAlert('import failed — file is corrupt or invalid');
+                break;
+            }
+
+            const { sheet: importedSheet, tables: importedTables } = result;
+            const tableCount = importedTables?.length ?? 0;
+
+            // 3 — Conflict check: sheet with same name already exists?
+            let finalSheetName = importedSheet.name;
+            const conflictingSheet = allSheets.find(s => s.name === importedSheet.name);
+            if (conflictingSheet) {
+                const conflictChoice = await showImportConflictModal(importedSheet.name);
+                if (!conflictChoice) break; // cancelled
+
+                if (conflictChoice === 'replace') {
+                    // Cascade-delete the existing sheet
+                    const existingTables = await db().getBySheetId(conflictingSheet._id);
+                    for (const t of existingTables) {
+                        for (const row of (t.data ?? [])) {
+                            for (const val of row) {
+                                if (typeof val === 'string') {
+                                    if (val.startsWith('IMG:')) {
+                                        try { await window.electron.images.delete(val.slice(4)); } catch { }
+                                    } else if (val.startsWith('FILE:')) {
+                                        try { await window.electron.files.delete(val.slice(5).split('|')[0]); } catch { }
+                                    }
+                                }
+                            }
+                        }
+                        await db().delete(t._id);
+                    }
+                    await sheets().delete(conflictingSheet._id);
+                    allSheets = allSheets.filter(s => s._id !== conflictingSheet._id);
+                } else {
+                    // Generate a unique "(N)" suffix
+                    let suffix = 2;
+                    while (allSheets.find(s => s.name === `${importedSheet.name} (${suffix})`)) suffix++;
+                    finalSheetName = `${importedSheet.name} (${suffix})`;
+                }
+            }
+
+            // 4 — Confirm with user before creating
+            const ok = await showConfirm(
+                `import <strong>${finalSheetName}</strong>?
+                 this will create a new sheet with ${tableCount} table${tableCount === 1 ? '' : 's'}.`,
+                'import', false
+            );
+            if (!ok) break;
+
+            // 5 — Create the sheet and all its tables
+            try {
+                const newSheet = await sheets().create(finalSheetName);
+                for (const table of importedTables) {
+                    await db().create({ ...table, sheetId: newSheet._id });
+                }
+                // Refresh and switch to the imported sheet
+                allSheets = await sheets().getAll();
+                topbar.setSheets(allSheets);
+                currentSheet = newSheet;
+                topbar.setSheet(currentSheet);
+                persistLastSheet(currentSheet);
+                await loadTables();
+                showToast('sheet imported ✓', 'success');
+            } catch (err) {
+                console.error('[App] import create failed:', err);
+                showToast('import failed', 'error');
+            }
+            break;
+        }
+    }
+}
+

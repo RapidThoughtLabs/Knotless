@@ -12,7 +12,7 @@ export class AppFooter {
         this._dbPath  = null;
         // Track count/filter internally so setSaving/setSaved don't wipe them
         this._count   = 0;
-        this._filter  = 'recents';
+        this._filter  = 'home';
     }
 
     create() {
@@ -24,7 +24,7 @@ export class AppFooter {
                 <span class="footer-brand-link" id="footer-rtl-link">rtl://</span>knotless
             </div>
             <div class="footer-info">
-                <span id="footer-count">0 tables</span><span class="footer-dot">·</span><span id="footer-filter">recents</span>
+                <span id="footer-count">0 tables</span><span class="footer-dot">·</span><span id="footer-filter">home</span>
             </div>
             <div class="footer-end">
                 <div class="footer-status-wrap" id="footer-status-area">
@@ -37,9 +37,19 @@ export class AppFooter {
         `;
         this._el = el;
 
-        // rtl:// link → rapid thought labs
-        el.querySelector('#footer-rtl-link')?.addEventListener('click', () => {
-            window.electron?.openExternal?.('https://www.rapidthoughtlabs.com');
+        // rtl:// link → rapid thought labs website
+        el.querySelector('#footer-rtl-link')?.addEventListener('click', async () => {
+            console.log('[AppFooter] rtl:// clicked, electron:', !!window.electron, 'openExternal:', typeof window.electron?.openExternal);
+            try {
+                const result = await window.electron?.openExternal?.('https://www.rapidthoughtlabs.com');
+                if (!result?.ok) {
+                    console.warn('[AppFooter] openExternal failed:', result);
+                    showToast('could not open browser: ' + (result?.error ?? 'no response'), 'error');
+                }
+            } catch (err) {
+                console.error('[AppFooter] openExternal threw:', err);
+                showToast('browser open failed', 'error');
+            }
         });
 
         // Status area click → copy DB path

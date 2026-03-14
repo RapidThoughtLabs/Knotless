@@ -4,7 +4,7 @@
  * Global toast notification system.
  * Usage: showToast('message', 'success' | 'error' | 'info')
  *
- * Positions: 'titlebar' | 'top-right' | 'bottom-center' | 'bottom-right'
+ * Positions: 'titlebar' | 'top-left' | 'top-right' | 'bottom-center'
  * Default: 'titlebar' (centered in the title bar strip at top)
  */
 
@@ -15,7 +15,7 @@ let _position = 'titlebar'; // default
 const ICONS = { success: '✓', error: '✕', info: '·' };
 
 // All known position classes
-const POSITIONS = ['pos-titlebar', 'pos-top-right', 'pos-bottom-center', 'pos-bottom-right'];
+const POSITIONS = ['pos-titlebar', 'pos-top-left', 'pos-top-right', 'pos-bottom-center'];
 
 function getContainer() {
     if (!_container) {
@@ -36,7 +36,7 @@ function applyPosition(container) {
 
 /**
  * Set the toast notification position and persist for this session.
- * @param {'titlebar'|'top-right'|'bottom-center'|'bottom-right'} pos
+ * @param {'titlebar'|'top-left'|'top-right'|'bottom-center'} pos
  */
 export function setToastPosition(pos) {
     _position = pos;

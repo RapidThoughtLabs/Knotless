@@ -142,13 +142,53 @@ body {
   border: 1px solid var(--border2);
   border-radius: 6px;
   padding: 4px;
-  min-width: 120px;
+  min-width: 160px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   z-index: 200;
 }
 
 .filter-menu.filter-menu--open {
   display: block;
+}
+
+/* Sheet list — scrollable area inside the dropdown */
+.sheet-list {
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Sticky wrapper for the * add sheet button */
+.sheet-add-wrapper {
+  position: sticky;
+  bottom: 0;
+  padding: 4px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+/* Add sheet button — filter-option shape, btn-add glow/accent aesthetics, right-justified */
+.btn-add-sheet {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  text-align: right;
+  white-space: nowrap;
+  background: var(--accent);
+  color: var(--accent-txt);
+  font-weight: 700;
+  transition: box-shadow 0.22s ease, filter 0.18s ease;
+}
+
+.btn-add-sheet:hover {
+  filter: brightness(1.25);
+  box-shadow: var(--glow);
 }
 
 .filter-option {
@@ -239,9 +279,217 @@ body {
   transform: rotate(35deg);
 }
 
+/* ── Sheet Options ⋯ button ──────────────────────────────────────────────────
+   Solid disc — contrast to topbar surface. Smaller than btn-add (20px).
+   Dark mode: white disc / dark dots. Light mode: dark disc / light dots.
+   On hover: accent glow blooms. On .open: dots rotate 90° (h→v). */
+.btn-sheet-options {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  flex-shrink: 0;
+  background: var(--text);
+  /* dark=near-white, light=near-black */
+  color: var(--bg);
+  /* dots are bg color = high contrast */
+  transition: box-shadow 0.22s ease, filter 0.18s ease;
+  -webkit-app-region: no-drag;
+}
+
+.btn-sheet-options:hover {
+  box-shadow: var(--glow);
+  filter: brightness(1.08);
+}
+
+.sheet-opts-dots {
+  display: inline-block;
+  font-size: 8px;
+  letter-spacing: 1px;
+  line-height: 1;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When popup is open: dots rotate 90° — horizontal dots become vertical */
+.btn-sheet-options.open .sheet-opts-dots {
+  transform: rotate(90deg);
+}
+
+/* ── Search bar slot ─────────────────────────────────────────────────────────
+   Flex container in the topbar that holds the expanding search bar.
+   Max-width 560px: stays left-justified, never swallows the full topbar. */
+.search-bar-slot {
+  display: flex;
+  align-items: center;
+  flex: 0 1 560px;
+  /* grows into available space, max 560px */
+  min-width: 0;
+  margin-left: 4px;
+  -webkit-app-region: no-drag;
+}
+
+/* ── Search bar ──────────────────────────────────────────────────────────────
+   Same height as btn-add (28px), hollow pill — transparent bg with a
+   border in the opposite (text) colour. Internal elements use --text. */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  width: 100%;
+  border-radius: 99px;
+  background: transparent;
+  border: 1.5px solid var(--text);
+  color: var(--text);
+  padding: 0 10px;
+  animation: searchExpand 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  overflow: hidden;
+}
+
+@keyframes searchExpand {
+  from {
+    opacity: 0.5;
+    transform: scaleX(0.3);
+    transform-origin: left center;
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+}
+
+@keyframes searchCollapse {
+  from {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+
+  to {
+    opacity: 0;
+    transform: scaleX(0.3);
+    transform-origin: left center;
+  }
+}
+
+.search-bar--closing {
+  animation: searchCollapse 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.search-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--accent);
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  caret-color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.search-input::placeholder {
+  color: var(--accent);
+  opacity: 0.45;
+}
+
+.search-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+  opacity: 0.55;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  min-width: 30px;
+  text-align: right;
+}
+
+.search-nav-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.search-nav-btn:hover {
+  background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
+  opacity: 1;
+}
+
+.search-scope-label {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: var(--text);
+  opacity: 0.6;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+/* Accent-colored toggle switch */
+.search-scope-toggle {
+  width: 28px;
+  height: 15px;
+  border-radius: 8px;
+  background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.search-scope-toggle.on {
+  background: var(--accent);
+}
+
+.search-scope-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--text);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+}
+
+.search-scope-toggle.on .search-scope-thumb {
+  left: 15px;
+}
+
+
 /* ── Windows collapsible corner controls ─────────────────────────────────── */
 .windows-controls {
-  position: relative;   /* stays in flex flow — spacer absorbs the expansion */
+  position: relative;
+  /* stays in flex flow — spacer absorbs the expansion */
   flex-shrink: 0;
   height: 42px;
   margin-left: 8px;
@@ -386,6 +634,42 @@ body {
   height: 2px;
   background: var(--accent);
   opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* ── Table Highlights ──────────────────────────────────────────────────────── */
+.table-card.table-hl-r::before { content: ''; display: block; height: 3px; background: rgba(255,80,80,0.65); flex-shrink: 0; }
+.table-card.table-hl-o::before { content: ''; display: block; height: 3px; background: rgba(255,160,50,0.65); flex-shrink: 0; }
+.table-card.table-hl-y::before { content: ''; display: block; height: 3px; background: rgba(250,220,50,0.65); flex-shrink: 0; }
+.table-card.table-hl-g::before { content: ''; display: block; height: 3px; background: rgba(80,200,100,0.65); flex-shrink: 0; }
+.table-card.table-hl-b::before { content: ''; display: block; height: 3px; background: rgba(60,140,255,0.65); flex-shrink: 0; }
+
+
+/* ── Collapsible grid wrapper ─────────────────────────────────────────────── */
+/* grid-template-rows animation is the smoothest CSS collapse technique —
+   animates from actual content height to 0 with no JS measurement needed.   */
+.table-grid-wrapper {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  min-height: 0;
+  overflow: hidden; /* clips content during collapse so nothing leaks outside the 0fr track */
+  transition: grid-template-rows 0.28s ease, opacity 0.2s ease;
+}
+
+.table-card.collapsed .table-grid-wrapper {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+/* Suppress animation on initial render of already-collapsed cards */
+.table-card.no-anim .table-grid-wrapper {
+  transition: none !important;
+}
+
+/* Override any explicit card height when collapsed so it shrinks to footer */
+.table-card.collapsed {
+  height: auto !important;
 }
 
 /* Grid — flex:1 so it takes remaining space inside the card flex column */
@@ -393,6 +677,7 @@ body {
   border-bottom: 1px solid var(--border);
   flex: 1;
   overflow: hidden;
+  min-height: 0; /* required for grid-template-rows collapse */
   /* default: content never clips scroll container */
 }
 
@@ -435,7 +720,8 @@ body {
 
 .gap-mode .cell {
   border-right: none;
-  background: var(--surface2);   /* slightly lifted cell bg in gap mode */
+  background: var(--surface2);
+  /* slightly lifted cell bg in gap mode */
 }
 
 .gap-mode .cell:hover {
@@ -491,23 +777,46 @@ body {
 
 .cell.has-url {
   color: #60a8f0;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) - 2px);
   cursor: pointer;
 }
 
 .cell.has-code {
   color: var(--accent);
+  font-size: calc(var(--font-size, 13px) - 2px);
 }
 
 .cell.has-path {
   color: #c0a8e8;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) - 2px);
   cursor: pointer;
+}
+
+.cell.has-command {
+  color: #7ec9a0;
+  font-size: calc(var(--font-size, 13px) - 2px);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Light mode — darken all content-type colors for cream background legibility */
+[data-mode="light"] .cell.has-url {
+  color: #1a6abf;
+}
+
+[data-mode="light"] .cell.has-path {
+  color: #6b42b5;
+}
+
+[data-mode="light"] .cell.has-command {
+  color: #1e7a4a;
 }
 
 .cell.has-image {
   cursor: default;
   padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cell-image {
@@ -515,8 +824,155 @@ body {
   max-height: 120px;
   border-radius: 3px;
   object-fit: contain;
-  display: block;
 }
+
+/* ── File cell ───────────────────────────────────────────── */
+.cell.has-file {
+  cursor: grab;
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex;
+  /* card stretches to full cell height */
+  align-items: stretch;
+}
+
+.cell.has-file:active {
+  cursor: grabbing;
+}
+
+/* ───────────────────────────────────────────────────
+   DEFAULT (compact row): icon + details side-by-side
+   Triggers when the file is the only/tallest item in the row.
+─────────────────────────────────────────────────── */
+.cell-file-card {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: linear-gradient(135deg,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.15) 0%,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.07) 50%,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.02) 75%,
+      transparent 100%);
+  user-select: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: background 0.2s ease;
+}
+
+.cell.has-file:hover .cell-file-card {
+  background: linear-gradient(135deg,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.24) 0%,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.10) 50%,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.03) 75%,
+      transparent 100%);
+}
+
+/* Radial corner glow */
+.cell-file-card::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+      hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.10) 0%,
+      transparent 80%);
+  pointer-events: none;
+}
+
+/* ───────────────────────────────────────────────────
+   TALL (column layout): icon top-left, details bottom-right.
+   Applied by ResizeObserver when cell height > 60px
+   (i.e., an image sibling has inflated the row).
+─────────────────────────────────────────────────── */
+.cell.has-file-tall .cell-file-card {
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px;
+  gap: 0;
+}
+
+.cell.has-file-tall .file-icon {
+  align-self: flex-start;
+  /* icon locked top-left */
+}
+
+.cell.has-file-tall .file-info {
+  align-self: flex-end;
+  /* details pinned bottom-right */
+  align-items: flex-end;
+  padding-top: 0;
+  text-align: right;
+}
+
+/* Min-height on the row — just enough for compact mode */
+.table-row.has-file-row {
+  min-height: 36px;
+}
+
+/* ── File icon: theme-text color (white dark / black light) ── */
+.file-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  color: var(--text);
+  opacity: 0.75;
+  line-height: 1;
+  width: 22px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Override file-icons-js per-class color — keep theme-text color instead */
+.file-icon[class*="icon-"]::before,
+.file-icon[class*="-icon"]::before {
+  font-size: 22px !important;
+  color: var(--text) !important;
+}
+
+/* ── Text block: right-aligned in both layouts ── */
+.file-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  /* right-aligned in row layout */
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.file-name {
+  font-size: calc(var(--font-size, 13px) - 2px);
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.file-meta {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+
 
 /* Cell highlights */
 .cell.hl-r {
@@ -545,11 +1001,57 @@ body {
   box-shadow: inset 0 0 0 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.4);
 }
 
+/* Drag-and-drop target highlight */
+.cell.drag-over {
+  outline: 2px dashed hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.8);
+  outline-offset: -2px;
+  background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.08) !important;
+}
+
+/* ── Search hit highlight ────────────────────────────────────────────────────
+   Accent background, contrasting text — inverted from the normal cell.
+   --accent-txt is #0a0a0a in dark (near-black on bright accent)
+                  #ffffff in light (white on darkened accent) */
+.cell--search-hit {
+  background: var(--accent) !important;
+  color: var(--accent-txt) !important;
+  caret-color: var(--accent-txt);
+  box-shadow:
+    inset 0 0 0 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.8),
+    0 0 0 2px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.45),
+    0 0 12px 2px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25) !important;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+/* File cell search hit — invert all child text/icon colours to match accent-txt */
+.cell--search-hit .file-name,
+.cell--search-hit .file-meta {
+  color: var(--accent-txt) !important;
+}
+
+/* Override the !important on icon pseudo-elements by matching specificity */
+.cell--search-hit .file-icon {
+  color: var(--accent-txt) !important;
+  opacity: 1;
+}
+
+.cell--search-hit .file-icon[class*="icon-"]::before,
+.cell--search-hit .file-icon[class*="-icon"]::before {
+  color: var(--accent-txt) !important;
+}
+
+/* Table-name match: accent top stripe on the whole card */
+.table-search-hit {
+  border-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.7) !important;
+  box-shadow: 0 0 0 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.3);
+}
+
 /* ── Checklist Checkbox ────────────────────────────────────────────────────── */
 .cell-check {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 9px;
   width: 36px;
   flex: 0 0 36px;
   background: var(--cell-bg);
@@ -617,13 +1119,14 @@ body {
   border: none;
   outline: none;
   color: var(--text-mid);
-  font-size: calc(var(--font-size, 13px) - 2px);
+  font-size: var(--font-size, 13px);
+  font-weight: 600;
   letter-spacing: 0.06em;
   padding: 2px 4px;
   border-radius: 3px;
   transition: all 0.15s;
   min-width: 40px;
-  max-width: 180px;
+  max-width: 260px;
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -738,10 +1241,19 @@ body {
   width: 164px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   z-index: 1000;
+  transform-origin: top center;
 }
 
 .ctx-menu--hidden {
   display: none;
+}
+
+.ctx-menu--entering {
+  animation: menuIn 0.13s ease-out forwards;
+}
+
+.ctx-menu--hiding {
+  animation: menuOut 0.1s ease-in forwards;
 }
 
 .ctx-item {
@@ -763,16 +1275,76 @@ body {
   color: var(--text);
 }
 
+/* delete row — red at rest + on hover */
+.ctx-danger {
+  color: #ff7070;
+}
+
 .ctx-danger:hover {
   background: rgba(255, 80, 80, 0.1);
   color: #ff7070;
 }
+
+[data-mode="light"] .ctx-danger {
+  color: #c0392b;
+}
+
+[data-mode="light"] .ctx-danger:hover {
+  background: rgba(192, 57, 43, 0.1);
+  color: #c0392b;
+}
+
+/* ── Context menu action labels (Group 1) ────────────────────────────────── */
+/* Shared base — bold, tighter tracking */
+.ctx-action {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* URL action — mirrors .cell.has-url colors */
+.ctx-action--url       { color: #60a8f0; }
+.ctx-action--url:hover { background: rgba(96, 168, 240, 0.12); color: #60a8f0; }
+[data-mode="light"] .ctx-action--url       { color: #1a6abf; }
+[data-mode="light"] .ctx-action--url:hover { background: rgba(26, 106, 191, 0.12); color: #1a6abf; }
+
+/* Command action — mirrors .cell.has-command colors */
+.ctx-action--cmd       { color: #7ec9a0; }
+.ctx-action--cmd:hover { background: rgba(126, 201, 160, 0.12); color: #7ec9a0; }
+[data-mode="light"] .ctx-action--cmd       { color: #1e7a4a; }
+[data-mode="light"] .ctx-action--cmd:hover { background: rgba(30, 122, 74, 0.12); color: #1e7a4a; }
+
+/* Image / File action — accent color */
+.ctx-action--blob       { color: var(--accent); }
+.ctx-action--blob:hover { background: var(--accent-dim); color: var(--accent); }
+
+/* Path action — mirrors .cell.has-path colors */
+.ctx-action--path       { color: #c0a8e8; }
+.ctx-action--path:hover { background: rgba(192, 168, 232, 0.12); color: #c0a8e8; }
+[data-mode="light"] .ctx-action--path       { color: #6b42b5; }
+[data-mode="light"] .ctx-action--path:hover { background: rgba(107, 66, 181, 0.12); color: #6b42b5; }
 
 .ctx-divider {
   height: 1px;
   background: var(--border);
   margin: 3px 0;
 }
+
+/* Disabled items in ctx-menu (import/export placeholders, home sheet rename/delete) */
+.ctx-disabled {
+  opacity: 0.38;
+  cursor: default !important;
+  pointer-events: none;
+}
+
+/* Small inline badge — e.g. "soon" or "home" next to a disabled item */
+.ctx-badge {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
 
 .ctx-arrow {
   font-size: 9px;
@@ -849,6 +1421,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: overlayIn 0.18s ease-out forwards;
+}
+
+.modal-overlay--out {
+  animation: overlayOut 0.15s ease-in forwards;
+}
+
+.modal-overlay--out .modal-sm {
+  animation: modalOut 0.15s ease-in forwards;
 }
 
 .modal-sm {
@@ -858,6 +1439,7 @@ body {
   padding: 22px;
   width: 300px;
   box-shadow: 0 16px 60px rgba(0, 0, 0, 0.6);
+  animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-title {
@@ -911,23 +1493,78 @@ body {
   justify-content: flex-end;
 }
 
+/* Import conflict modal */
+.modal-conflict-info {
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 14px;
+  letter-spacing: 0.03em;
+}
+
+.modal-conflict-info strong {
+  color: var(--text);
+}
+
+.modal-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.modal-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-mid);
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  transition: border-color 0.15s, color 0.15s;
+  letter-spacing: 0.03em;
+}
+
+.modal-radio-option:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.modal-radio-option input[type="radio"] {
+  accent-color: var(--accent);
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.modal-radio-option strong {
+  color: var(--text);
+}
+
 /* Shared button styles */
 .btn-cancel {
   padding: 6px 14px;
   background: transparent;
-  border: 1px solid var(--border2);
+  border: 1px solid hsla(0, 75%, 55%, 0.45);
   border-radius: 4px;
-  color: var(--text-dim);
+  color: hsla(0, 75%, 65%, 0.8);
   font-size: 11px;
   cursor: pointer;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
-  transition: all 0.15s;
+  transition: box-shadow 0.22s ease, filter 0.18s ease, color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 .btn-cancel:hover {
-  color: var(--text);
-  border-color: var(--text-dim);
+  border-color: hsla(0, 75%, 55%, 0.9);
+  color: hsl(0, 75%, 72%);
+  background: hsla(0, 75%, 55%, 0.08);
+  filter: brightness(1.2);
+  box-shadow:
+    0 0 2px 1px hsla(0, 75%, 55%, 0.65),
+    0 0 10px 3px hsla(0, 75%, 55%, 0.30),
+    0 0 24px 5px hsla(0, 75%, 55%, 0.12);
 }
 
 .btn-confirm {
@@ -967,6 +1604,22 @@ body {
 
 .settings-overlay.hidden {
   display: none;
+}
+
+.settings-overlay.opening {
+  animation: overlayIn 0.2s ease-out forwards;
+}
+
+.settings-overlay.opening .settings-modal {
+  animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.settings-overlay.closing {
+  animation: overlayOut 0.18s ease-in forwards;
+}
+
+.settings-overlay.closing .settings-modal {
+  animation: modalOut 0.18s ease-in forwards;
 }
 
 .settings-modal {
@@ -1096,6 +1749,48 @@ body {
   flex-shrink: 0;
 }
 
+/* Slider control (file size limit) */
+.slider-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.slider-ctrl input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border2);
+  outline: none;
+  cursor: pointer;
+}
+
+.slider-ctrl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.slider-ctrl input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 3px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
+}
+
+#file-size-val {
+  font-size: 10px;
+  color: var(--text-mid);
+  min-width: 52px;
+  letter-spacing: 0.04em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 .seg-btn {
   padding: 4px 10px;
   font-size: 10px;
@@ -1110,6 +1805,40 @@ body {
 
 .seg-btn.active {
   background: var(--accent);
+  color: var(--accent-txt);
+}
+
+/* ── Toast position — 2×2 grid picker ─────────────────────────────────────── */
+.toast-pos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.toast-pos-btn {
+  padding: 5px 10px;
+  font-size: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border2);
+  background: var(--bg);
+  color: var(--text-dim);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+}
+
+.toast-pos-btn:hover:not(.active) {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.toast-pos-btn.active {
+  background: var(--accent);
+  border-color: transparent;
   color: var(--accent-txt);
 }
 
@@ -1364,7 +2093,8 @@ body {
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
-  direction: rtl;        /* truncate from left → show filename end */
+  direction: rtl;
+  /* truncate from left → show filename end */
   unicode-bidi: plaintext;
   opacity: 0.7;
   transition: opacity 0.15s;
@@ -1393,12 +2123,15 @@ body {
 }
 
 @keyframes breathe {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.90;
     box-shadow:
       0 0 4px 1px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.55),
       0 0 10px 2px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.20);
   }
+
   50% {
     opacity: 0.28;
     box-shadow:
@@ -1407,8 +2140,15 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.85; }
-  50%       { opacity: 0.25; }
+
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
 }
 
 /* ── Toast System ──────────────────────────────────────────────────────────── */
@@ -1430,6 +2170,13 @@ body {
   align-items: center;
 }
 
+/* Position: top-left corner */
+.toast-container.pos-top-left {
+  top: 48px;
+  left: 16px;
+  align-items: flex-start;
+}
+
 /* Position: top-right corner */
 .toast-container.pos-top-right {
   top: 48px;
@@ -1443,13 +2190,6 @@ body {
   left: 50%;
   transform: translateX(-50%);
   align-items: center;
-}
-
-/* Position: bottom-right corner */
-.toast-container.pos-bottom-right {
-  bottom: 52px;
-  right: 16px;
-  align-items: flex-end;
 }
 
 .toast {
@@ -1472,21 +2212,21 @@ body {
 }
 
 .toast.success {
-  background: rgba(20, 20, 20, 0.92);
-  border-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
-  color: var(--accent);
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--surface);
 }
 
 .toast.error {
-  background: rgba(20, 20, 20, 0.92);
-  border-color: rgba(255, 80, 80, 0.3);
-  color: #ff7070;
+  background: #f04040;
+  border-color: transparent;
+  color: #0a0a0a;
 }
 
 .toast.info {
-  background: rgba(20, 20, 20, 0.92);
-  border-color: var(--border2);
-  color: var(--text-mid);
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--surface);
 }
 
 .toast-icon {
@@ -1495,13 +2235,79 @@ body {
 
 /* Top positions: override animation to drop down instead of rise up */
 .toast-container.pos-titlebar .toast,
+.toast-container.pos-top-left .toast,
 .toast-container.pos-top-right .toast {
   animation: toastInDown 0.2s ease forwards;
 }
 
 .toast-container.pos-titlebar .toast.out,
+.toast-container.pos-top-left .toast.out,
 .toast-container.pos-top-right .toast.out {
   animation: toastOutDown 0.2s ease forwards;
+}
+
+/* ── Modal / Menu Animations ───────────────────────────────────────────────── */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes overlayOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes menuOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94) translateY(-3px);
+  }
+}
+
+/* Respect animations: off setting */
+[data-anim="off"] .modal-overlay,
+[data-anim="off"] .modal-sm,
+[data-anim="off"] .settings-overlay,
+[data-anim="off"] .settings-overlay .settings-modal,
+[data-anim="off"] .ctx-menu {
+  animation: none !important;
 }
 
 @keyframes toastIn {
@@ -1552,13 +2358,6 @@ body {
   }
 }
 
-/* ── Light-mode toast override ─────────────────────────────────────────────── */
-[data-mode="light"] .toast.success,
-[data-mode="light"] .toast.error,
-[data-mode="light"] .toast.info {
-  background: rgba(240, 237, 232, 0.95);
-}
-
 /* ── Light-mode accent label overrides ────────────────────────────────────────
    Accent-colored interactive labels look washed-out on the cream background.
    In light mode we switch them to near-black bold text, but keep the accent
@@ -1577,7 +2376,7 @@ body {
   filter: none;
   box-shadow: none;
   text-shadow:
-    0 0 8px  hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
+    0 0 8px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
     0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5),
     0 0 40px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
 }
@@ -1594,7 +2393,7 @@ body {
   filter: none;
   box-shadow: none;
   text-shadow:
-    0 0 8px  hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
+    0 0 8px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.9),
     0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.5),
     0 0 40px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25);
 }
@@ -1632,6 +2431,7 @@ body {
 
 /* ── Respect OS-level "reduce motion" preference (Windows Ease of Access) ───── */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -1655,4 +2455,75 @@ body {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
+}
+
+/* ── Export Modal — dual-option card layout ─────────────────────────────────── */
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.modal-sm:has(.export-options) {
+  width: 380px;
+}
+
+.modal-sm:has(.export-options) .modal-actions {
+  margin-top: 16px;
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.22s ease, transform 0.2s ease;
+  outline: none;
+  background: var(--surface2);
+  position: relative;
+  overflow: hidden;
+}
+
+.export-option:hover,
+.export-option:focus-visible {
+  background: linear-gradient(135deg,
+    hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.15) 0%,
+    hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.07) 50%,
+    hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.02) 75%,
+    transparent 100%);
+  transform: scale(1.03);
+}
+
+.export-option-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  transition: color 0.2s ease;
+}
+
+.export-option:hover .export-option-icon,
+.export-option:focus-visible .export-option-icon {
+  color: var(--accent);
+}
+
+.export-option-title {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.export-option-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 5px;
+  letter-spacing: 0.03em;
+  line-height: 1.55;
 }

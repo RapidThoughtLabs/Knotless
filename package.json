@@ -77,6 +77,9 @@
         "wait-on": "^7.2.0"
     },
     "dependencies": {
+        "file-icons-js": "^1.1.0",
+        "fuse.js": "^7.1.0",
+        "jszip": "^3.10.1",
         "nedb": "^1.8.0"
     }
 }

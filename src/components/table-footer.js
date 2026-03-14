@@ -37,9 +37,9 @@ export class TableFooter {
      * @param {Function} callbacks.onAddRow      - (tableId) => void
      * @param {Function} callbacks.onOptions     - (optionsBtnEl, tableId, tableData) => void
      */
-    constructor(table, { onNameChange, onAddRow, onOptions, onMoveUp } = {}) {
+    constructor(table, { onNameChange, onAddRow, onOptions, onMoveUp, onCollapse } = {}) {
         this._table = table;
-        this._cb = { onNameChange, onAddRow, onOptions, onMoveUp };
+        this._cb = { onNameChange, onAddRow, onOptions, onMoveUp, onCollapse };
         this._el = null;
     }
 
@@ -107,6 +107,14 @@ export class TableFooter {
         el.querySelector('.btn-options')?.addEventListener('click', (e) => {
             e.stopPropagation();
             onOptions?.(e.currentTarget, _id, this._table);
+        });
+
+        // Collapse — dblclick on the spacer zone (the dynamic gap between
+        // the table name and the ⋯ button). Ignores clicks on inputs/buttons/dial
+        // so every interactive control keeps its own behaviour.
+        el.addEventListener('dblclick', (e) => {
+            if (e.target.closest('input, button, .checklist-dial, .pin-badge')) return;
+            this._cb.onCollapse?.(_id);
         });
     }
 }

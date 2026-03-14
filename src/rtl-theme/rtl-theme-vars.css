@@ -63,7 +63,7 @@
     --text-mid: #484840;    /* was #6a6a60 — much darker, legible on cream */
     --text-dim: #6e6c66;    /* was #aaa89e — significantly darker */
     --text-edit: #282824;   /* was #6a6a60 — darker editing text */
-    --accent-txt: #0a0a0a;
+    --accent-txt: #ffffff;  /* light-mode accents are darkened, so white text reads cleanly */
 }
 
 /* ══════════════════════════════════════════════════

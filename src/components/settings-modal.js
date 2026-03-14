@@ -36,10 +36,10 @@ export class SettingsModal {
      * @param {Object} settingsApi - { get, update, reset } via window.electron.settings
      */
     constructor(themeEngine, settingsApi) {
-        this._theme    = themeEngine;
+        this._theme = themeEngine;
         this._settings = settingsApi;
-        this._el       = null;
-        this._visible  = false;
+        this._el = null;
+        this._visible = false;
         this._activeSection = 'general';
     }
 
@@ -56,12 +56,12 @@ export class SettingsModal {
     async _populateFooter() {
         try {
             const info = await window.electron?.getAppInfo?.();
-            const osLabel      = info?.osVersion ?? '';
+            const osLabel = info?.osVersion ?? '';
             const versionLabel = info?.version ? `v${info.version}` : 'v—';
 
-            const osEl  = this._el?.querySelector('#settings-os-info');
+            const osEl = this._el?.querySelector('#settings-os-info');
             const verEl = this._el?.querySelector('#settings-app-version');
-            if (osEl)  osEl.textContent  = osLabel ? `${osLabel} ` : '';
+            if (osEl) osEl.textContent = osLabel ? `${osLabel} ` : '';
             if (verEl) verEl.textContent = versionLabel;
         } catch {
             // non-critical
@@ -71,13 +71,27 @@ export class SettingsModal {
     open() {
         if (!this._el) return;
         this._el.classList.remove('hidden');
+        this._el.classList.remove('closing');
         this._visible = true;
+        if (document.documentElement.dataset.anim !== 'off') {
+            this._el.classList.add('opening');
+            setTimeout(() => this._el?.classList.remove('opening'), 220);
+        }
         this._syncFromState();
     }
 
     close() {
-        this._el?.classList.add('hidden');
+        if (!this._el) return;
         this._visible = false;
+        if (document.documentElement.dataset.anim === 'off') {
+            this._el.classList.add('hidden');
+            return;
+        }
+        this._el.classList.add('closing');
+        setTimeout(() => {
+            this._el?.classList.add('hidden');
+            this._el?.classList.remove('closing');
+        }, 180);
     }
 
     toggle() {
@@ -85,7 +99,7 @@ export class SettingsModal {
     }
 
     _buildHTML() {
-        const cfg     = this._theme.getConfig();
+        const cfg = this._theme.getConfig();
         const accents = Object.entries(RTL_ACCENT_SWATCH_COLORS);
 
         return `
@@ -131,11 +145,11 @@ export class SettingsModal {
                             <div class="setting-label">notification position</div>
                             <div class="setting-sub">where toasts appear</div>
                         </div>
-                        <div class="seg-ctrl" id="toast-pos-seg">
-                            <div class="seg-btn active" data-toast-pos="titlebar">title bar</div>
-                            <div class="seg-btn" data-toast-pos="top-right">top right</div>
-                            <div class="seg-btn" data-toast-pos="bottom-center">bottom</div>
-                            <div class="seg-btn" data-toast-pos="bottom-right">corner</div>
+                        <div class="toast-pos-grid" id="toast-pos-seg">
+                            <button class="toast-pos-btn" data-toast-pos="top-left">top left</button>
+                            <button class="toast-pos-btn" data-toast-pos="top-right">top right</button>
+                            <button class="toast-pos-btn active" data-toast-pos="titlebar">top</button>
+                            <button class="toast-pos-btn" data-toast-pos="bottom-center">bottom</button>
                         </div>
                     </div>
                     <div class="setting-row">
@@ -147,6 +161,16 @@ export class SettingsModal {
                             <span class="col-step-btn" data-font-step="-1">−</span>
                             <span id="font-size-val">13</span>
                             <span class="col-step-btn" data-font-step="1">+</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">file size limit</div>
+                            <div class="setting-sub">max attachment size (0 = unlimited)</div>
+                        </div>
+                        <div class="slider-ctrl">
+                            <input type="range" id="file-size-slider" min="0" max="100" step="5" value="50" />
+                            <span id="file-size-val">50 MB</span>
                         </div>
                     </div>
                     ${window.electron?.isMac ? '' : `
@@ -175,8 +199,8 @@ export class SettingsModal {
                             <div class="setting-sub">dark, light, or follow system</div>
                         </div>
                         <div class="seg-ctrl" id="mode-seg">
-                            <div class="seg-btn${cfg.mode === 'dark'   ? ' active' : ''}" data-mode="dark">dark</div>
-                            <div class="seg-btn${cfg.mode === 'light'  ? ' active' : ''}" data-mode="light">light</div>
+                            <div class="seg-btn${cfg.mode === 'dark' ? ' active' : ''}" data-mode="dark">dark</div>
+                            <div class="seg-btn${cfg.mode === 'light' ? ' active' : ''}" data-mode="light">light</div>
                             <div class="seg-btn${cfg.mode === 'system' ? ' active' : ''}" data-mode="system">system</div>
                         </div>
                     </div>
@@ -245,8 +269,13 @@ export class SettingsModal {
         });
 
         // rtl:// brand link in settings footer
-        el.querySelector('#settings-rtl-link')?.addEventListener('click', () => {
-            window.electron?.openExternal?.('https://www.rapidthoughtlabs.com');
+        el.querySelector('#settings-rtl-link')?.addEventListener('click', async () => {
+            try {
+                const ok = await window.electron?.openExternal?.('https://www.rapidthoughtlabs.com');
+                if (!ok) console.warn('[Settings] openExternal returned false');
+            } catch (err) {
+                console.error('[Settings] openExternal failed:', err);
+            }
         });
 
         // Sidebar nav
@@ -296,7 +325,7 @@ export class SettingsModal {
         });
 
         // Default columns stepper
-        el.querySelector('#default-cols-val') && el.querySelectorAll('.col-step-btn').forEach(btn => {
+        el.querySelector('#default-cols-val') && el.querySelectorAll('.col-step-btn[data-step]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const valEl = el.querySelector('#default-cols-val');
                 let v = parseInt(valEl.textContent) || 3;
@@ -311,7 +340,7 @@ export class SettingsModal {
             const btn = e.target.closest('[data-toast-pos]');
             if (!btn) return;
             const pos = btn.dataset.toastPos;
-            el.querySelectorAll('#toast-pos-seg .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+            el.querySelectorAll('#toast-pos-seg .toast-pos-btn').forEach(b => b.classList.toggle('active', b === btn));
             setToastPosition(pos);
             await this._settings.update('general.toastPosition', pos);
             showToast('notification position set', 'info');
@@ -341,6 +370,14 @@ export class SettingsModal {
                 showToast(`animations → ${level}`, 'info');
             });
         }
+
+        // File size limit slider
+        el.querySelector('#file-size-slider')?.addEventListener('input', async (e) => {
+            const v = parseInt(e.target.value);
+            const label = el.querySelector('#file-size-val');
+            if (label) label.textContent = v === 0 ? 'unlimited' : `${v} MB`;
+            await this._settings.update('general.maxFileSizeMB', v);
+        });
 
         // Theme reset
         el.querySelector('#theme-reset-btn')?.addEventListener('click', async () => {
@@ -396,7 +433,7 @@ export class SettingsModal {
 
             // Sync and apply toast position
             const toastPos = saved.general?.toastPosition ?? 'titlebar';
-            el.querySelectorAll('#toast-pos-seg .seg-btn').forEach(b => {
+            el.querySelectorAll('#toast-pos-seg .toast-pos-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.toastPos === toastPos);
             });
             setToastPosition(toastPos);
@@ -415,6 +452,13 @@ export class SettingsModal {
                 });
                 applyAnimationLevel(animLevel);
             }
+
+            // Sync file size slider
+            const maxFileSizeMB = saved.general?.maxFileSizeMB ?? 50;
+            const slider = el.querySelector('#file-size-slider');
+            const fileSizeLabel = el.querySelector('#file-size-val');
+            if (slider) slider.value = maxFileSizeMB;
+            if (fileSizeLabel) fileSizeLabel.textContent = maxFileSizeMB === 0 ? 'unlimited' : `${maxFileSizeMB} MB`;
         }
     }
 }
