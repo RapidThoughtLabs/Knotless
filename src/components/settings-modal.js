@@ -114,6 +114,9 @@ export class SettingsModal {
                 <div class="settings-nav-item" data-section="theme">
                     <span class="nav-icon">◈</span> theme
                 </div>
+                <div class="settings-nav-item" data-section="handbook">
+                    <span class="nav-icon">⊡</span> handbook
+                </div>
             </div>
 
             <!-- Content -->
@@ -150,6 +153,16 @@ export class SettingsModal {
                             <button class="toast-pos-btn" data-toast-pos="top-right">top right</button>
                             <button class="toast-pos-btn active" data-toast-pos="titlebar">top</button>
                             <button class="toast-pos-btn" data-toast-pos="bottom-center">bottom</button>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">table controls</div>
+                            <div class="setting-sub">where name & row controls appear</div>
+                        </div>
+                        <div class="toast-pos-grid table-ctrl-grid" id="table-ctrl-pos-seg">
+                            <button class="toast-pos-btn active" data-table-ctrl-pos="header">header</button>
+                            <button class="toast-pos-btn" data-table-ctrl-pos="footer">footer</button>
                         </div>
                     </div>
                     <div class="setting-row">
@@ -234,6 +247,38 @@ export class SettingsModal {
                     </div>
 
                     <button class="btn-reset" id="theme-reset-btn">↺ reset to defaults</button>
+                </div>
+
+                <!-- HANDBOOK -->
+                <div class="settings-panel-section hidden" id="settings-handbook">
+                    <div class="settings-section-title">handbook</div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">generate handbook</div>
+                            <div class="setting-sub">creates a reference sheet with all knotless features, shortcuts, and usage guides. replaces any existing handbook.</div>
+                        </div>
+                        <div>
+                            <button class="btn-reset" id="btn-generate-handbook">generate</button>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">auto-update on new version</div>
+                            <div class="setting-sub">automatically regenerate the handbook when a newer version ships with the app.</div>
+                        </div>
+                        <div>
+                            <div class="toggle on" id="handbook-auto-update"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">last generated</div>
+                            <div class="setting-sub" id="handbook-last-created">never</div>
+                        </div>
+                        <div>
+                            <div class="setting-sub" id="handbook-version" style="opacity:0.5;font-size:10px;text-align:right;"></div>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -346,6 +391,17 @@ export class SettingsModal {
             showToast('notification position set', 'info');
         });
 
+        // Table controls position picker
+        el.querySelector('#table-ctrl-pos-seg')?.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-table-ctrl-pos]');
+            if (!btn) return;
+            const pos = btn.dataset.tableCtrlPos;
+            el.querySelectorAll('#table-ctrl-pos-seg .toast-pos-btn').forEach(b => b.classList.toggle('active', b === btn));
+            await this._settings.update('general.tableControlsPosition', pos);
+            document.dispatchEvent(new CustomEvent('rtl:table-controls-position-change', { detail: { position: pos } }));
+            showToast(`table controls → ${pos}`, 'info');
+        });
+
         // Font size stepper
         el.querySelectorAll('[data-font-step]').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -377,6 +433,19 @@ export class SettingsModal {
             const label = el.querySelector('#file-size-val');
             if (label) label.textContent = v === 0 ? 'unlimited' : `${v} MB`;
             await this._settings.update('general.maxFileSizeMB', v);
+        });
+
+        // Handbook — generate button
+        el.querySelector('#btn-generate-handbook')?.addEventListener('click', () => {
+            document.dispatchEvent(new CustomEvent('rtl:generate-handbook'));
+            this.close();
+        });
+
+        // Handbook — auto-update toggle (accent-colored .toggle div)
+        el.querySelector('#handbook-auto-update')?.addEventListener('click', async (e) => {
+            const toggle = e.currentTarget;
+            const isOn = toggle.classList.toggle('on');
+            await this._settings.update('handbook.autoUpdate', isOn);
         });
 
         // Theme reset
@@ -438,6 +507,12 @@ export class SettingsModal {
             });
             setToastPosition(toastPos);
 
+            // Sync table controls position
+            const tableCtrlPos = saved.general?.tableControlsPosition ?? 'header';
+            el.querySelectorAll('#table-ctrl-pos-seg .toast-pos-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.tableCtrlPos === tableCtrlPos);
+            });
+
             // Sync and apply font size
             const fontSize = saved.general?.fontSize ?? 13;
             const fontValEl = el.querySelector('#font-size-val');
@@ -459,6 +534,34 @@ export class SettingsModal {
             const fileSizeLabel = el.querySelector('#file-size-val');
             if (slider) slider.value = maxFileSizeMB;
             if (fileSizeLabel) fileSizeLabel.textContent = maxFileSizeMB === 0 ? 'unlimited' : `${maxFileSizeMB} MB`;
+
+            // Sync handbook last-generated label
+            const hbLabel = el.querySelector('#handbook-last-created');
+            if (hbLabel) {
+                const ts = saved.handbook?.lastCreated ?? null;
+                if (ts) {
+                    const d = new Date(ts);
+                    hbLabel.textContent = d.toLocaleString(undefined, {
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                    });
+                } else {
+                    hbLabel.textContent = 'never';
+                }
+            }
+
+            // Sync handbook auto-update toggle (accent-colored .toggle div)
+            const autoUpdateEl = el.querySelector('#handbook-auto-update');
+            if (autoUpdateEl) {
+                autoUpdateEl.classList.toggle('on', saved.handbook?.autoUpdate !== false);
+            }
+
+            // Sync handbook version badge
+            const versionEl = el.querySelector('#handbook-version');
+            if (versionEl) {
+                const v = saved.handbook?.version ?? null;
+                versionEl.textContent = v ? `v${v}` : '';
+            }
         }
     }
 }

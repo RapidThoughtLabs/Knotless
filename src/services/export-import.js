@@ -237,7 +237,8 @@ class ExportImportService {
      *                              Used to locate the HTML viewer template bundled with the app.
      */
     constructor(electronDir) {
-        this._templatePath = path.join(electronDir, 'templates', 'ktl-viewer-template.html');
+        this._templatePath  = path.join(electronDir, 'templates', 'ktl-viewer-template.html');
+        this._fileIconsDir  = path.join(electronDir, '..', 'node_modules', 'file-icons-js');
     }
 
     // ── Export: plain JSON ────────────────────────────────────────────────────
@@ -316,6 +317,9 @@ class ExportImportService {
         zip.file(`${sheetSafe}.ktl.json`, jsonStr);
         zip.file(`${sheetSafe}.ktl.html`, htmlContent);
 
+        // Bundle file-icons-js assets so the HTML viewer can render proper file icons
+        this._bundleFileIcons(zip);
+
         // Add blobs (one copy per unique-hash file)
         const addedBlobs = new Set();
         for (const [absPath, exportName] of Object.entries(dedupeMap)) {
@@ -334,6 +338,42 @@ class ExportImportService {
         });
         fs.writeFileSync(saveFilePath, zipBuf);
         return { ok: true };
+    }
+
+    // ── Bundle file-icons-js assets into ZIP ─────────────────────────────────
+
+    _bundleFileIcons(zip) {
+        try {
+            // JS bundle
+            const jsPath = path.join(this._fileIconsDir, 'dist', 'file-icons.js');
+            if (fs.existsSync(jsPath)) {
+                zip.file('file-icons/file-icons.js', fs.readFileSync(jsPath));
+            }
+
+            // CSS — rewrite font URLs from "../fonts/" to "fonts/" so they resolve
+            // correctly relative to file-icons/style.css inside the ZIP.
+            const cssPath = path.join(this._fileIconsDir, 'css', 'style.css');
+            if (fs.existsSync(cssPath)) {
+                const css = fs.readFileSync(cssPath, 'utf-8')
+                    .replace(/url\("\.\.\/fonts\//g, 'url("fonts/');
+                zip.file('file-icons/style.css', css);
+            }
+
+            // Fonts
+            const fontsDir = path.join(this._fileIconsDir, 'fonts');
+            if (fs.existsSync(fontsDir)) {
+                for (const fname of fs.readdirSync(fontsDir)) {
+                    if (fname.endsWith('.woff2')) {
+                        zip.file(
+                            'file-icons/fonts/' + fname,
+                            fs.readFileSync(path.join(fontsDir, fname)),
+                        );
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('[ExportImport] Could not bundle file-icons assets:', err.message);
+        }
     }
 
     // ── Import ────────────────────────────────────────────────────────────────

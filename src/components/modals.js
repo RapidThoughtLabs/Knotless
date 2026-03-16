@@ -105,6 +105,7 @@ export function showAddSheetModal(defaultName = '') {
         const overlay = makeOverlay(`
             <div class="modal-title">new sheet_</div>
             <input class="modal-input" id="new-sheet-input" placeholder="untitled sheet" autocomplete="off" />
+            <div class="modal-error hidden" id="sheet-name-error"></div>
             <div class="modal-actions">
                 <button class="btn-cancel" id="modal-cancel">cancel</button>
                 <button class="btn-confirm" id="modal-add">add →</button>
@@ -112,12 +113,23 @@ export function showAddSheetModal(defaultName = '') {
         `);
 
         const input = overlay.querySelector('#new-sheet-input');
+        const errorEl = overlay.querySelector('#sheet-name-error');
         input.value = defaultName;
 
         requestAnimationFrame(() => { input.focus(); input.select(); });
 
+        // Reserved sheet names (case-insensitive)
+        const RESERVED = ['handbook'];
+
         function confirm() {
             const name = input.value.trim() || 'untitled sheet';
+            if (RESERVED.includes(name.toLowerCase())) {
+                errorEl.textContent = `"${name.toLowerCase()}" is a system reserved name`;
+                errorEl.classList.remove('hidden');
+                input.focus();
+                return;
+            }
+            errorEl.classList.add('hidden');
             dismissOverlay(overlay);
             resolve(name);
         }
@@ -126,6 +138,9 @@ export function showAddSheetModal(defaultName = '') {
             dismissOverlay(overlay);
             resolve(null);
         }
+
+        // Clear error on any input change
+        input.addEventListener('input', () => errorEl.classList.add('hidden'));
 
         overlay.querySelector('#modal-add')?.addEventListener('click', confirm);
         overlay.querySelector('#modal-cancel')?.addEventListener('click', cancel);
@@ -253,6 +268,81 @@ export function showAlert(message) {
                 ok();
                 document.removeEventListener('keydown', handler);
             }
+        });
+    });
+}
+
+// ── Move Table to Sheet Modal ──────────────────────────────────────────────────
+
+/**
+ * Show a sheet-picker popup for moving a table to another sheet.
+ * @param {Array} sheets - All sheet docs [{ _id, name }]
+ * @param {string} currentSheetId - ID of the sheet the table currently belongs to
+ * @returns {Promise<string|null>} Selected sheetId or null if cancelled
+ */
+export function showMoveToSheetModal(sheets, currentSheetId) {
+    const otherSheets = sheets.filter(s => s._id !== currentSheetId);
+
+    const sheetItemsHTML = otherSheets.map(s =>
+        `<div class="move-sheet-option" data-sheet-id="${s._id}">${s.name}</div>`
+    ).join('');
+
+    return new Promise((resolve) => {
+        const overlay = makeOverlay(`
+            <div class="modal-title">move to_</div>
+            <div class="move-sheet-list">${sheetItemsHTML}</div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="modal-cancel">cancel</button>
+            </div>
+        `);
+
+        function cancel() {
+            dismissOverlay(overlay);
+            resolve(null);
+        }
+
+        overlay.querySelector('.move-sheet-list')?.addEventListener('click', (e) => {
+            const opt = e.target.closest('.move-sheet-option');
+            if (!opt) return;
+            dismissOverlay(overlay);
+            resolve(opt.dataset.sheetId);
+        });
+
+        overlay.querySelector('#modal-cancel')?.addEventListener('click', cancel);
+        overlay.addEventListener('rtl:modal-cancel', cancel);
+
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { cancel(); document.removeEventListener('keydown', handler); }
+        });
+    });
+}
+
+/**
+ * Show a "file not found" dialog with an option to clear the dead cell reference.
+ * @param {string} fileName - Display name of the missing file
+ * @returns {Promise<boolean>} true if user chose to clear the cell
+ */
+export function showFileMissingModal(fileName) {
+    return new Promise((resolve) => {
+        const overlay = makeOverlay(`
+            <div class="confirm-dialog">
+                <div><strong>${fileName}</strong> couldn't be found — it may have been moved or deleted.</div>
+                <div class="confirm-row">
+                    <button class="btn-cancel" id="missing-dismiss">dismiss</button>
+                    <button class="btn-confirm btn-danger" id="missing-clear">clear cell</button>
+                </div>
+            </div>
+        `);
+
+        function clear() { dismissOverlay(overlay); resolve(true); }
+        function dismiss() { dismissOverlay(overlay); resolve(false); }
+
+        overlay.querySelector('#missing-clear')?.addEventListener('click', clear);
+        overlay.querySelector('#missing-dismiss')?.addEventListener('click', dismiss);
+        overlay.addEventListener('rtl:modal-cancel', dismiss);
+
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { dismiss(); document.removeEventListener('keydown', handler); }
         });
     });
 }

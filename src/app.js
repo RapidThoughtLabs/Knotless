@@ -9,15 +9,16 @@
 import { RTLThemeEngine } from './rtl-theme/rtl-theme-engine.js';
 import { Topbar } from './components/topbar.js';
 import { AppFooter } from './components/app-footer.js';
-import { TableCard } from './components/table-card.js';
+import { TableCard, stripFormatMarkers } from './components/table-card.js';
 import { CellContextMenu } from './components/context-menu.js';
 import { TableOptionsMenu } from './components/table-options-menu.js';
 import { SheetOptionsMenu } from './components/sheet-options-menu.js';
 import { SearchBar } from './components/search-bar.js';
 import { SettingsModal, applyAnimationLevel, applyFontSize } from './components/settings-modal.js';
-import { showAddTableModal, showAddSheetModal, showConfirm, showAlert, showImportConflictModal } from './components/modals.js';
+import { showAddTableModal, showAddSheetModal, showConfirm, showAlert, showImportConflictModal, showFileMissingModal, showMoveToSheetModal } from './components/modals.js';
 import { showExportModal } from './components/export-modal.js';
 import { showToast, setToastPosition } from './components/toast.js';
+import { HANDBOOK_TABLES, HANDBOOK_VERSION } from './data/handbook-tables.js';
 
 // ── File-icons-js: expose globally so table-card.js can look up icon classes ──
 import * as fileIconsModule from 'file-icons-js';
@@ -34,6 +35,7 @@ let currentSheet = null;    // active sheet doc { _id, name }
 let allSheets = [];         // cached list of all sheet docs
 let tables = [];            // current array of loaded table docs
 let tableCards = new Map(); // tableId → TableCard instance
+let tableControlsPosition = 'header'; // 'header' | 'footer' — read from settings on init
 
 // ── Components (module-level singletons) ─────────────────────────────────────
 let topbar;
@@ -63,11 +65,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     await themeEngine.init();
 
-    // 1.5 — Apply saved toast position, animation level, and font size before any toast fires
+    // 1.5 — Apply saved toast position, animation level, font size, and table controls position
     try {
         const savedSettings = await settings()?.get();
         const toastPos = savedSettings?.general?.toastPosition ?? 'titlebar';
         setToastPosition(toastPos);
+        tableControlsPosition = savedSettings?.general?.tableControlsPosition ?? 'header';
         // Font size
         const fontSize = savedSettings?.general?.fontSize ?? 13;
         applyFontSize(fontSize);
@@ -125,6 +128,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.addEventListener('rtl:add-sheet-click', handleAddSheet);
     document.addEventListener('rtl:settings-click', () => settingsModal.toggle());
+    document.addEventListener('rtl:generate-handbook', () => regenerateHandbook());
+    // Re-render tables when table controls position changes in settings
+    document.addEventListener('rtl:table-controls-position-change', (e) => {
+        tableControlsPosition = e.detail.position;
+        renderAll();
+    });
 
     // Sheet options button → toggle sheet menu open/close
     document.addEventListener('rtl:sheet-options-click', (e) => {
@@ -171,7 +180,9 @@ async function initSheets() {
     try {
         // Create default "home" sheet only if the DB is completely empty
         await sheets().ensureHome();
-        // Load all sheets
+        // Inject handbook on first-ever launch (added=false, lastCreated=null)
+        await initHandbook();
+        // Load all sheets (re-fetch after potential handbook creation)
         allSheets = await sheets().getAll();
         // Restore the last open sheet, falling back to the first sheet
         let lastSheetId = null;
@@ -195,6 +206,205 @@ async function initSheets() {
 
 async function persistLastSheet(sheet) {
     try { await settings().update('general.lastOpenSheetId', sheet._id); } catch { }
+}
+
+// ── Handbook ──────────────────────────────────────────────────────────────────
+
+/**
+ * On app start, decide whether to auto-inject the handbook.
+ *
+ * Rules (evaluated in order):
+ *   1. added=false + lastCreated=null + version=null  → first ever launch → inject
+ *   2. version bump + autoUpdate=true                 → auto-replace with new version
+ *   3. version bump + autoUpdate=false                → do nothing (user regenerates manually)
+ *   4. added=false + lastCreated≠null + version bump  → user deleted old, but NEW version
+ *                                                        exists → inject new (overrides deletion)
+ *   5. added=false + lastCreated≠null + no bump       → user deleted, respect it, do nothing
+ *   6. added=true  + up to date                       → verify sheet still exists in DB
+ */
+async function initHandbook() {
+    try {
+        const s = await settings().get();
+        const hb = s?.handbook ?? {};
+        const hasVersionBump = isNewerHandbookVersion(HANDBOOK_VERSION, hb.version);
+
+        // Rule 1: Fresh install — never had a handbook
+        if (!hb.added && !hb.lastCreated && !hb.version) {
+            await createHandbook();
+            return;
+        }
+
+        // Rules 2–4: Version bump detected
+        if (hasVersionBump) {
+            if (hb.added && hb.autoUpdate !== false) {
+                // Rule 2: Handbook exists and auto-update is on → replace it
+                await regenerateHandbook();
+                return;
+            }
+            if (!hb.added && hb.lastCreated) {
+                // Rule 4: User deleted old version, but a genuinely new version exists
+                // The user didn't delete THIS version — inject it
+                await createHandbook();
+                return;
+            }
+            // Rule 3: added=true but autoUpdate=false, or added=false with no lastCreated gap
+            // Do nothing — user will manually regenerate from settings
+            return;
+        }
+
+        // Rule 5: No version bump, user deleted it → respect deletion
+        if (!hb.added && hb.lastCreated) return;
+
+        // Rule 6: Handbook should exist — verify it wasn't wiped externally (DB reset)
+        if (hb.added && hb.sheetId) {
+            const all = await sheets().getAll();
+            const stillExists = all.some(sh => sh._id === hb.sheetId);
+            if (!stillExists) {
+                await settings().update('handbook.added', false);
+            }
+        }
+    } catch (err) {
+        console.error('[App] initHandbook failed:', err);
+    }
+}
+
+/**
+ * Returns true if `current` is a newer version than `installed`.
+ * Uses locale-aware numeric string comparison so '1.10' > '1.9'.
+ */
+function isNewerHandbookVersion(current, installed) {
+    if (!installed) return false; // null/undefined means fresh install — handled separately
+    return current.localeCompare(installed, undefined, { numeric: true }) > 0;
+}
+
+/**
+ * Build a highlights map for a handbook table.
+ * Each table gets its own color personality — different header colors,
+ * different first-column colors, and a few sprinkled body highlights
+ * to showcase the highlight feature itself.
+ *
+ * Colors: hl-lime, hl-red, hl-pink, hl-purple, hl-yellow, hl-blue, hl-cyan, hl-orange
+ */
+function buildHandbookHighlights(table, tableIndex) {
+    const highlights = {};
+    const rows = table.data?.length ?? 0;
+    const cols = table.columns ?? 1;
+
+    // Per-table color schemes: [headerColor, firstColColor, sprinkles]
+    // sprinkles = array of { r, c, hl } for extra highlights in the body
+    const schemes = [
+        // 0: welcome — blue headers, lime first col, yellow on "this handbook" row
+        { header: 'hl-blue',   col0: 'hl-lime',   sprinkles: [{ r: 7, c: 1, hl: 'hl-yellow' }] },
+        // 1: what's new — cyan headers, cyan first col, purple on highlight palette row
+        { header: 'hl-cyan',   col0: 'hl-cyan',   sprinkles: [{ r: 5, c: 1, hl: 'hl-purple' }] },
+        // 2: cell types in action — orange headers, yellow first col, lime on "bold text" row
+        { header: 'hl-orange', col0: 'hl-yellow', sprinkles: [{ r: 9, c: 1, hl: 'hl-lime' }, { r: 9, c: 2, hl: 'hl-lime' }] },
+        // 3: keyboard shortcuts — blue headers, blue first col, lime on cmd+B/I rows
+        { header: 'hl-blue',   col0: 'hl-blue',   sprinkles: [{ r: 7, c: 1, hl: 'hl-lime' }, { r: 8, c: 1, hl: 'hl-lime' }] },
+        // 4: context menu — red headers, orange first col, lime on "▶ run"
+        { header: 'hl-red',    col0: 'hl-orange', sprinkles: [{ r: 8, c: 1, hl: 'hl-lime' }] },
+        // 5: sheet & table management — lime headers, lime first col, cyan on table highlight rows
+        { header: 'hl-lime',   col0: 'hl-lime',   sprinkles: [{ r: 12, c: 1, hl: 'hl-cyan' }, { r: 13, c: 1, hl: 'hl-cyan' }] },
+        // 6: use case ideas — yellow headers, orange first col, demo status highlights
+        { header: 'hl-yellow', col0: 'hl-orange', sprinkles: [
+            { r: 1, c: 1, hl: 'hl-lime' },   // project manager → lime (done)
+            { r: 3, c: 1, hl: 'hl-blue' },   // dev commands → blue (reference)
+            { r: 4, c: 1, hl: 'hl-red' },    // token vault → red (sensitive)
+        ]},
+        // 7: weekly task checklist — orange headers, lime first col, red on deploy row
+        { header: 'hl-orange', col0: 'hl-lime',   sprinkles: [{ r: 5, c: 1, hl: 'hl-red' }, { r: 5, c: 2, hl: 'hl-red' }, { r: 5, c: 3, hl: 'hl-red' }] },
+        // 8: export & import — blue headers, blue first col, lime on .ktl.zip row
+        { header: 'hl-blue',   col0: 'hl-blue',   sprinkles: [{ r: 2, c: 2, hl: 'hl-lime' }] },
+        // 9: tips & tricks — lime headers, yellow first col, orange on highlight tip, purple on table highlight tip
+        { header: 'hl-lime',   col0: 'hl-yellow', sprinkles: [{ r: 2, c: 1, hl: 'hl-orange' }, { r: 3, c: 1, hl: 'hl-purple' }] },
+    ];
+
+    const scheme = schemes[tableIndex] ?? { header: 'hl-blue', col0: 'hl-blue', sprinkles: [] };
+
+    // Header row (row 0)
+    for (let c = 0; c < cols; c++) {
+        highlights[`0-${c}`] = scheme.header;
+    }
+    // First column labels (skip row 0 — already highlighted)
+    for (let r = 1; r < rows; r++) {
+        highlights[`${r}-0`] = scheme.col0;
+    }
+    // Sprinkled body highlights
+    for (const s of scheme.sprinkles) {
+        if (s.r < rows && s.c < cols) {
+            highlights[`${s.r}-${s.c}`] = s.hl;
+        }
+    }
+
+    return highlights;
+}
+
+/**
+ * Create the handbook sheet and inject all tables into it.
+ * Updates handbook.added, handbook.lastCreated, handbook.sheetId in settings.
+ */
+async function createHandbook() {
+    try {
+        const sheet = await sheets().create('handbook');
+        for (let i = 0; i < HANDBOOK_TABLES.length; i++) {
+            const t = HANDBOOK_TABLES[i];
+            await db().create({
+                name:      t.name,
+                sheetId:   sheet._id,
+                columns:   t.columns,
+                data:      t.data,
+                pinned:    t.pinned ?? false,
+                checklist: t.checklist ?? false,
+                checked:   t.checked  ?? [],
+                highlight: t.highlight ?? null,
+                highlights: buildHandbookHighlights(t, i),
+                sortOrder: Date.now(),
+                cardHeight:null,
+            });
+        }
+        await settings().update('handbook.added',      true);
+        await settings().update('handbook.lastCreated', new Date().toISOString());
+        await settings().update('handbook.sheetId',     sheet._id);
+        await settings().update('handbook.version',     HANDBOOK_VERSION);
+    } catch (err) {
+        console.error('[App] createHandbook failed:', err);
+        throw err;
+    }
+}
+
+/**
+ * Regenerate the handbook: delete any existing handbook sheet + tables,
+ * then create a fresh copy. Called from settings → handbook → generate.
+ */
+async function regenerateHandbook() {
+    try {
+        const hb = (await settings().get())?.handbook ?? {};
+
+        // If there's a tracked handbook sheet, nuke it first
+        if (hb.sheetId) {
+            const all = await sheets().getAll();
+            const existing = all.find(sh => sh._id === hb.sheetId);
+            if (existing) {
+                const sheetTables = await db().getBySheetId(hb.sheetId);
+                for (const t of sheetTables) {
+                    await db().delete(t._id);
+                }
+                await sheets().delete(hb.sheetId);
+            }
+        }
+
+        // Create a brand-new handbook
+        await createHandbook();
+
+        // Refresh the topbar sheet list
+        allSheets = await sheets().getAll();
+        topbar.setSheets(allSheets);
+
+        showToast('handbook generated ✓', 'success');
+    } catch (err) {
+        console.error('[App] regenerateHandbook failed:', err);
+        showToast('failed to generate handbook', 'error');
+    }
 }
 
 // ── Table Loading ─────────────────────────────────────────────────────────────
@@ -236,11 +446,15 @@ function renderAll() {
                 onNameChange: handleNameChange,
                 onAddRow: handleAddRow,
                 onOptions: (btnEl, tableId, tableData) => {
-                    tableOptsMenu.show(btnEl, tableId, tableData);
+                    tableOptsMenu.show(btnEl, tableId, {
+                        ...tableData,
+                        excludeFirstRow: tableData.excludeFirstRow ?? false,
+                    });
                 },
                 onMoveUp: handleMoveUp,
                 onResize: handleResize,
                 onCollapse: handleCollapse,
+                controlsPosition: tableControlsPosition,
             });
             const el = card.create();
             tableCards.set(table._id, card);
@@ -470,12 +684,25 @@ async function handleCellAction(action, cellEl, extra) {
 
         case 'open': {
             let pathToOpen = null;
+            let displayName = null;
             if (isFileCell(currentVal)) {
                 pathToOpen = parseFilePath(currentVal);
+                displayName = parseFileName(currentVal);
             } else if (isImageCell(currentVal)) {
                 pathToOpen = currentVal.slice(IMG_PREFIX.length);
+                displayName = pathToOpen.split('/').pop().split('\\').pop() || 'image';
             }
             if (!pathToOpen) return;
+            const fileExists = await window.electron.files.exists(pathToOpen);
+            if (!fileExists) {
+                const shouldClear = await showFileMissingModal(displayName);
+                if (shouldClear) {
+                    await handleCellUpdate(tableId, row, col, '');
+                    await handleHighlight(tableId, row, col, null);
+                    await loadTables();
+                }
+                return;
+            }
             try {
                 await window.electron.files.open(pathToOpen);
             } catch (err) {
@@ -488,6 +715,17 @@ async function handleCellAction(action, cellEl, extra) {
         case 'reveal-path': {
             const pathToReveal = currentVal.trim();
             if (!pathToReveal) return;
+            const pathExists = await window.electron.files.exists(pathToReveal);
+            if (!pathExists) {
+                const displayName = pathToReveal.split('/').pop().split('\\').pop() || pathToReveal;
+                const shouldClear = await showFileMissingModal(displayName);
+                if (shouldClear) {
+                    await handleCellUpdate(tableId, row, col, '');
+                    await handleHighlight(tableId, row, col, null);
+                    await loadTables();
+                }
+                return;
+            }
             try {
                 await window.electron.files.reveal(pathToReveal);
             } catch (err) {
@@ -568,7 +806,7 @@ async function handleCellAction(action, cellEl, extra) {
                     showToast('image copied', 'success');
                 } catch { showToast('copy failed', 'error'); }
             } else {
-                await navigator.clipboard.writeText(currentVal);
+                await navigator.clipboard.writeText(stripFormatMarkers(currentVal));
                 showToast('copied', 'success');
             }
             break;
@@ -735,7 +973,9 @@ async function handleCellAction(action, cellEl, extra) {
 // ── Table Options Handlers ─────────────────────────────────────────────────────
 
 async function handleTableAction(action, tableId) {
-    const table = tables.find(t => t._id === tableId);
+    // Highlight actions pass { tableId, key } object — extract the real id for the guard
+    const resolvedId = (typeof tableId === 'object' && tableId !== null) ? tableId.tableId : tableId;
+    const table = tables.find(t => t._id === resolvedId);
     if (!table) return;
 
     switch (action) {
@@ -802,9 +1042,26 @@ async function handleTableAction(action, tableId) {
             break;
         }
 
+        case 'toggle-exclude-first-row': {
+            if (!table.checklist) return;
+            const excludeFirstRow = !table.excludeFirstRow;
+            await db().update(tableId, { excludeFirstRow });
+            await loadTables();
+            break;
+        }
+
+        case 'move-to': {
+            const targetSheetId = await showMoveToSheetModal(allSheets, currentSheet._id);
+            if (!targetSheetId) return;
+            const targetSheet = allSheets.find(s => s._id === targetSheetId);
+            await db().update(tableId, { sheetId: targetSheetId });
+            showToast(`moved to ${targetSheet?.name ?? 'sheet'}`, 'success');
+            await loadTables();
+            break;
+        }
+
         case 'table-highlight': {
-            const colorKey = tableId.key; // action passes { tableId, key } from options menu
-            const tId = tableId.tableId; // action passes { tableId, key } from options menu
+            const { tableId: tId, key: colorKey } = tableId; // receives full { tableId, key } object
             const targetTable = tables.find(t => t._id === tId);
             if (!targetTable) return;
             try {
@@ -821,7 +1078,7 @@ async function handleTableAction(action, tableId) {
         }
 
         case 'clear-table-highlight': {
-            const tId = tableId.tableId; // action passes { tableId } from options menu
+            const tId = tableId.tableId ?? tableId; // receives { tableId } object
             const targetTable = tables.find(t => t._id === tId);
             if (!targetTable) return;
             try {
@@ -1011,6 +1268,14 @@ async function handleSheetAction(action, sheet) {
                 }
                 // Delete the sheet itself
                 await sheets().delete(sheet._id);
+                // If the deleted sheet was the handbook, flip added → false
+                // (keep lastCreated so the app knows the user chose to delete it)
+                try {
+                    const hb = (await settings().get())?.handbook;
+                    if (hb?.sheetId === sheet._id) {
+                        await settings().update('handbook.added', false);
+                    }
+                } catch { }
                 showToast('sheet deleted', 'error');
                 // Refresh sheet list — if none remain, create a blank "home" fallback
                 allSheets = await sheets().getAll();
@@ -1122,6 +1387,11 @@ async function handleSheetAction(action, sheet) {
 
             // 3 — Conflict check: sheet with same name already exists?
             let finalSheetName = importedSheet.name;
+
+            // Reserved namespace guard — imported sheets can't claim "handbook"
+            if (finalSheetName.toLowerCase() === 'handbook') {
+                finalSheetName = 'handbook (imported)';
+            }
             const conflictingSheet = allSheets.find(s => s.name === importedSheet.name);
             if (conflictingSheet) {
                 const conflictChoice = await showImportConflictModal(importedSheet.name);

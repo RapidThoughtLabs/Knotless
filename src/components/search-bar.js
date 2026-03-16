@@ -206,8 +206,9 @@ export class SearchBar {
 
         const fuse = new Fuse(entries, {
             keys: ['text'],
-            threshold: 0.4,
+            threshold: 0.2,       // tighter — reduces obscure/noisy results
             ignoreLocation: true,
+            minMatchCharLength: 2, // ignore single-char noise matches
         });
 
         const results = fuse.search(q);

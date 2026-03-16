@@ -19,7 +19,7 @@
         "tables"
     ],
     "author": "",
-    "license": "MIT",
+    "license": "AGPL-3.0-or-later",
     "build": {
         "appId": "com.rapidthoughtlabs.knotless",
         "productName": "Knotless",
@@ -29,6 +29,7 @@
         "files": [
             "dist/**/*",
             "electron/**/*",
+            "src/services/**/*",
             "package.json"
         ],
         "win": {

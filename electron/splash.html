@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KnotLess</title>
+  <style>
+    /* ── Font ─────────────────────────────────────────────────────────────── */
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: local('JetBrains Mono'), local('JetBrainsMono-Regular');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: local('JetBrains Mono Bold'), local('JetBrainsMono-Bold');
+      font-weight: 700;
+    }
+
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Menlo', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      padding: 28px 32px 24px;
+      /* slight fade-in on open */
+      animation: appear 120ms ease-out both;
+    }
+
+    @keyframes appear {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ── Theme variables resolved by inline JS ────────────────────────────── */
+    :root {
+      --bg:      #0a0a0a;
+      --text:    #e8e8e0;
+      --text-dim:#787870;
+      --accent:  hsl(46, 96%, 60%);
+      --border:  #242424;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .app-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+
+    .app-version {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Log output ───────────────────────────────────────────────────────── */
+    .log {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow: hidden;
+    }
+
+    .log-line {
+      display: flex;
+      align-items: baseline;
+      gap: 0;
+      opacity: 0;
+      transform: translateY(3px);
+      animation: line-in 90ms ease-out forwards;
+      white-space: pre;
+    }
+
+    @keyframes line-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-line .prompt {
+      color: var(--text-dim);
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .log-line .msg {
+      color: var(--text);
+      flex: 1;
+    }
+
+    .log-line .ok {
+      color: var(--accent);
+      font-weight: 700;
+      margin-left: 6px;
+      flex-shrink: 0;
+    }
+
+    .log-line .err {
+      color: #ff6b6b;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    /* ── Blinking cursor ──────────────────────────────────────────────────── */
+    .cursor {
+      display: inline-block;
+      width: 7px;
+      height: 13px;
+      background: var(--accent);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 900ms step-start infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    .footer {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-left {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.03em;
+    }
+
+    .theme-pill {
+      font-size: 10px;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      padding: 1px 6px;
+      opacity: 0.7;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Fade-out triggered by JS ─────────────────────────────────────────── */
+    body.fade-out {
+      animation: fade-out 280ms ease-in forwards;
+    }
+
+    @keyframes fade-out {
+      to { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span class="app-name">KnotLess</span>
+    <span class="app-version" id="ver">v—</span>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <div class="footer">
+    <span class="footer-left" id="platform-label">Rapid Thought Labs</span>
+    <span class="theme-pill" id="theme-pill">—</span>
+  </div>
+
+  <script>
+    // ── Color resolution ─────────────────────────────────────────────────────
+    const ACCENTS = {
+      lime:   { h: 86,  s: 84, l: 62 },
+      red:    { h: 4,   s: 90, l: 62 },
+      pink:   { h: 330, s: 80, l: 68 },
+      purple: { h: 270, s: 70, l: 68 },
+      yellow: { h: 46,  s: 96, l: 60 },
+      blue:   { h: 210, s: 80, l: 62 },
+      cyan:   { h: 186, s: 80, l: 52 },
+      orange: { h: 25,  s: 90, l: 58 },
+    };
+
+    // Light-mode lightness overrides (mirrors rtl-theme-vars.css)
+    const LIGHT_L = {
+      lime: 34, yellow: 36, purple: 42, cyan: 34,
+      pink: 46, blue: 42,  orange: 42, red: 44,
+    };
+
+    const DARK_PALETTE = {
+      bg: '#0a0a0a', text: '#e8e8e0', textDim: '#787870', border: '#242424',
+    };
+    const LIGHT_PALETTE = {
+      bg: '#f0ede8', text: '#121210', textDim: '#6e6c66', border: '#b4b0a8',
+    };
+
+    // Parse query params
+    const params  = new URLSearchParams(window.location.search);
+    const mode    = params.get('mode')    || 'dark';
+    const accent  = params.get('accent')  || 'yellow';
+    const version = params.get('version') || '';
+    const platform = params.get('platform') || 'Rapid Thought Labs';
+
+    const isLight = mode === 'light';
+    const palette = isLight ? LIGHT_PALETTE : DARK_PALETTE;
+    const accentDef = ACCENTS[accent] || ACCENTS.yellow;
+    const accentL = isLight ? (LIGHT_L[accent] ?? accentDef.l) : accentDef.l;
+    const accentHSL = `hsl(${accentDef.h}, ${accentDef.s}%, ${accentL}%)`;
+
+    // Apply to CSS vars
+    const root = document.documentElement;
+    root.style.setProperty('--bg',       palette.bg);
+    root.style.setProperty('--text',     palette.text);
+    root.style.setProperty('--text-dim', palette.textDim);
+    root.style.setProperty('--border',   palette.border);
+    root.style.setProperty('--accent',   accentHSL);
+
+    // Populate static UI
+    document.getElementById('ver').textContent         = version ? `v${version}` : '';
+    document.getElementById('platform-label').textContent = platform;
+    document.getElementById('theme-pill').textContent  = `${mode} / ${accent}`;
+
+    // ── Log rendering ────────────────────────────────────────────────────────
+    const logEl = document.getElementById('log');
+    let cursorEl = null;
+
+    function appendLine(raw) {
+      // Remove any existing cursor from previous line
+      if (cursorEl) cursorEl.remove();
+
+      const line = document.createElement('div');
+      line.className = 'log-line';
+
+      // Parse [ok] / [err] suffix
+      let text = raw;
+      let suffix = null;
+      let suffixClass = null;
+
+      const okMatch  = raw.match(/^(.*)\s+(\[ok\])$/);
+      const errMatch = raw.match(/^(.*)\s+(\[err\])$/);
+
+      if (okMatch)  { text = okMatch[1];  suffix = okMatch[2];  suffixClass = 'ok';  }
+      if (errMatch) { text = errMatch[1]; suffix = errMatch[2]; suffixClass = 'err'; }
+
+      const prompt = document.createElement('span');
+      prompt.className = 'prompt';
+      prompt.textContent = '›';
+
+      const msg = document.createElement('span');
+      msg.className = 'msg';
+      msg.textContent = text;
+
+      line.appendChild(prompt);
+      line.appendChild(msg);
+
+      if (suffix) {
+        const tag = document.createElement('span');
+        tag.className = suffixClass;
+        tag.textContent = suffix;
+        line.appendChild(tag);
+      }
+
+      // Attach blinking cursor after the msg text
+      cursorEl = document.createElement('span');
+      cursorEl.className = 'cursor';
+      msg.appendChild(cursorEl);
+
+      logEl.appendChild(line);
+
+      // Scroll into view
+      line.scrollIntoView({ block: 'end' });
+    }
+
+    // ── IPC wiring ───────────────────────────────────────────────────────────
+    if (window.splashAPI) {
+      window.splashAPI.onLog((line) => appendLine(line));
+
+      window.splashAPI.onReady(() => {
+        // Remove cursor, then fade out
+        if (cursorEl) cursorEl.remove();
+        document.body.classList.add('fade-out');
+      });
+    }
+
+    // ── Dev preview (no IPC) ─────────────────────────────────────────────────
+    // Uncomment below to preview the splash in a regular browser:
+    /*
+    const DEMO = [
+      'platform: macOS 16 Tahoe',
+      'initializing settings...  [ok]',
+      'loading theme: light / yellow  [ok]',
+      'initializing database...  [ok]',
+      'ensuring home sheet...  [ok]',
+      'preparing file system...  [ok]',
+      'loading renderer...',
+      'ready.  [ok]',
+    ];
+    let i = 0;
+    function next() { if (i < DEMO.length) { appendLine(DEMO[i++]); setTimeout(next, 220); } }
+    setTimeout(next, 80);
+    */
+  </script>
+</body>
+</html>

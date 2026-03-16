@@ -24,5 +24,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Docs (internal planning)
+docs/
+
 # Claude agent files
 .claude/

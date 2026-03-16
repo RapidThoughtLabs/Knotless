@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><!--KTL_SHEET_NAME--> — knotless</title>
+  <link rel="stylesheet" href="file-icons/style.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -484,17 +485,49 @@
       align-items: stretch;
     }
 
-    /* Highlight colours — exact match */
-    .hl-r { background: rgba(255,  80,  80, 0.10) !important; }
-    .hl-o { background: rgba(255, 160,  50, 0.10) !important; }
-    .hl-y { background: rgba(250, 220,  50, 0.10) !important; }
-    .hl-g { background: rgba( 80, 200, 100, 0.10) !important; }
-    .hl-b { background: rgba( 60, 140, 255, 0.10) !important; }
+    /* Highlight colours — 8 named colors matching app */
+    .hl-lime   { background: rgba(200, 240,  96, 0.12) !important; }
+    .hl-red    { background: rgba(255, 107, 107, 0.12) !important; }
+    .hl-pink   { background: rgba(240,  96, 144, 0.12) !important; }
+    .hl-purple { background: rgba(176, 112, 232, 0.12) !important; }
+    .hl-yellow { background: rgba(255, 208,  64, 0.12) !important; }
+    .hl-blue   { background: rgba( 96, 176, 240, 0.12) !important; }
+    .hl-cyan   { background: rgba( 64, 200, 192, 0.12) !important; }
+    .hl-orange { background: rgba(240, 128,  64, 0.12) !important; }
 
     /* Brief flash on copy */
     .copy-flash {
       background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.25) !important;
       transition: background 0.06s !important;
+    }
+
+    /* ══════════════════════════════════════════════════
+       TABLE-LEVEL HIGHLIGHT BADGE
+    ══════════════════════════════════════════════════ */
+    [data-mode="dark"]  .table-card.table-hl-lime   { --hl-bar-bg: #c8f060; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-red    { --hl-bar-bg: #ff6b6b; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-pink   { --hl-bar-bg: #f06090; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-purple { --hl-bar-bg: #b070e8; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-yellow { --hl-bar-bg: #ffd040; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-blue   { --hl-bar-bg: #60b0f0; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-cyan   { --hl-bar-bg: #40c8c0; --hl-bar-text: rgba(0,0,0,0.82); }
+    [data-mode="dark"]  .table-card.table-hl-orange { --hl-bar-bg: #f08040; --hl-bar-text: rgba(0,0,0,0.82); }
+
+    [data-mode="light"] .table-card.table-hl-lime   { --hl-bar-bg: #7aaa10; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-red    { --hl-bar-bg: #d83030; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-pink   { --hl-bar-bg: #c83060; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-purple { --hl-bar-bg: #7840c8; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-yellow { --hl-bar-bg: #b88000; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-blue   { --hl-bar-bg: #2070c0; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-cyan   { --hl-bar-bg: #108880; --hl-bar-text: rgba(255,255,255,0.92); }
+    [data-mode="light"] .table-card.table-hl-orange { --hl-bar-bg: #c85010; --hl-bar-text: rgba(255,255,255,0.92); }
+
+    /* Name badge colored pill when table is highlighted */
+    .table-card.has-hl .table-name-label {
+      background: var(--hl-bar-bg, transparent);
+      color: var(--hl-bar-text, var(--text-mid));
+      border-radius: 4px;
+      padding: 3px 8px;
     }
 
     /* ══════════════════════════════════════════════════
@@ -553,15 +586,23 @@
       pointer-events: none;
     }
 
-    .file-icon-wrap {
-      font-size: 20px;
+    /* file-icons-js icon span — theme-text color, no per-icon color override */
+    .file-icon {
+      font-size: 22px;
       flex-shrink: 0;
-      opacity: 0.75;
+      color: var(--text);
+      opacity: 0.85;
       line-height: 1;
-      width: 22px;
+      width: 24px;
       text-align: center;
       position: relative;
       z-index: 1;
+    }
+
+    .file-icon[class*="icon-"]::before,
+    .file-icon[class*="-icon"]::before {
+      font-size: 22px !important;
+      color: var(--text) !important;
     }
 
     .file-info {
@@ -822,6 +863,7 @@
   <!-- ── Toast container ── -->
   <div class="toast-container" id="toast-container"></div>
 
+  <script src="file-icons/file-icons.js"></script>
   <script>
     // KTL_DATA is injected at export time by ExportImportService.
     const KTL_DATA = /*__KTL_DATA__*/;
@@ -844,22 +886,29 @@
       orange: '#e86820',
     };
 
-    const FILE_EMOJI = {
-      png:'🖼', jpg:'🖼', jpeg:'🖼', gif:'🖼', webp:'🖼', svg:'🖼', bmp:'🖼', tiff:'🖼',
-      js:'📜', ts:'📜', jsx:'📜', tsx:'📜', py:'📜', rs:'📜', go:'📜',
-      java:'📜', c:'📜', cpp:'📜', cs:'📜', rb:'📜', php:'📜', swift:'📜',
-      css:'📜', html:'📜', json:'📋', xml:'📋', yaml:'📋', yml:'📋', toml:'📋',
-      sh:'🖥', bash:'🖥', zsh:'🖥', ps1:'🖥', bat:'🖥',
-      pdf:'📕', doc:'📝', docx:'📝', txt:'📄', md:'📝', rtf:'📝',
-      csv:'📊', xlsx:'📊', xls:'📊', db:'🗄', sqlite:'🗄',
-      zip:'📦', tar:'📦', gz:'📦', rar:'📦',
-      mp3:'🎵', wav:'🎵', flac:'🎵', ogg:'🎵',
-      mp4:'🎬', mov:'🎬', avi:'🎬', mkv:'🎬', webm:'🎬',
-    };
+    // ── Text formatting (mirrors app's renderFormattedText) ───────────────────
+    function renderFormattedText(val) {
+      if (!val) return '';
+      const esc = val
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      return esc
+        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g,         '<em>$1</em>');
+    }
 
-    function getFileEmoji(filename) {
-      const ext = (filename.split('.').pop() || '').toLowerCase();
-      return FILE_EMOJI[ext] || '📄';
+    // ── File icon via file-icons-js (loaded from file-icons/file-icons.js) ────
+    // The UMD bundle exposes global.FileIcons (capital F) when loaded via <script>.
+    function getFileIconClass(filename) {
+      try {
+        if (typeof FileIcons !== 'undefined') {
+          const cls = FileIcons.getClass(filename);
+          if (cls) return cls;
+        }
+      } catch {}
+      return 'default-icon'; // generic fallback class from file-icons-js
     }
 
     function formatSize(bytes) {
@@ -1028,9 +1077,8 @@
         const card = document.createElement('div');
         card.className = 'cell-file-card';
 
-        const iconWrap = document.createElement('div');
-        iconWrap.className = 'file-icon-wrap';
-        iconWrap.textContent = getFileEmoji(origName);
+        const iconWrap = document.createElement('span');
+        iconWrap.className = 'file-icon ' + getFileIconClass(origName);
 
         const info = document.createElement('div');
         info.className = 'file-info';
@@ -1083,14 +1131,17 @@
         return el;
       }
 
-      el.textContent = cellVal;
-
       if (URL_RE.test(trimmed)) {
         el.classList.add('cell-url');
+        el.textContent = cellVal;
       } else if (CODE_RE.test(trimmed)) {
         el.classList.add('cell-code');
+        el.textContent = cellVal;
       } else if (PATH_RE.test(trimmed)) {
         el.classList.add('cell-path');
+        el.textContent = cellVal;
+      } else {
+        el.innerHTML = renderFormattedText(cellVal);
       }
 
       el.addEventListener('click', () => copyText(cellVal, el));
@@ -1139,27 +1190,33 @@
       }
 
       for (const table of tables) {
+        const tableHlKey = table.highlight || null;
+        const tableHlClass = tableHlKey
+          ? ' table-' + tableHlKey + ' has-hl'
+          : '';
         const card = document.createElement('div');
-        card.className = 'table-card' + (table.pinned ? ' pinned' : '');
+        card.className = 'table-card' + (table.pinned ? ' pinned' : '') + tableHlClass;
 
         // ── Table rows ─────────────────────────────────────────────────────────
         const tableGrid = document.createElement('div');
         tableGrid.className = 'table-grid';
 
-        const cols        = Math.max(1, table.columns || 1);
-        const rows        = table.data || [];
-        const isChecklist = !!table.checklist;
-        const checked     = table.checked || [];
+        const cols           = Math.max(1, table.columns || 1);
+        const rows           = table.data || [];
+        const isChecklist    = !!table.checklist;
+        const checked        = table.checked || [];
+        const excludeFirstRow = !!table.excludeFirstRow;
 
         rows.forEach((row, rowIdx) => {
+          const isHeaderRow = excludeFirstRow && rowIdx === 0;
           const rowEl = document.createElement('div');
           rowEl.className = 'table-row';
-          rowEl.style.gridTemplateColumns = isChecklist
+          rowEl.style.gridTemplateColumns = (isChecklist && !isHeaderRow)
             ? '36px repeat(' + cols + ', 1fr)'
             : 'repeat(' + cols + ', 1fr)';
 
-          // Checkbox cell
-          if (isChecklist) {
+          // Checkbox cell — skip for the excluded header row
+          if (isChecklist && !isHeaderRow) {
             const checkWrap = document.createElement('div');
             checkWrap.className = 'cell-check';
             const box = document.createElement('div');
@@ -1203,8 +1260,10 @@
         footer.appendChild(spacer);
 
         if (isChecklist && rows.length > 0) {
-          const checkedCount = checked.filter(Boolean).length;
-          footer.appendChild(makeDialSvg(checkedCount, rows.length));
+          const skip         = excludeFirstRow ? 1 : 0;
+          const dialTotal    = rows.length - skip;
+          const dialChecked  = checked.slice(skip).filter(Boolean).length;
+          if (dialTotal > 0) footer.appendChild(makeDialSvg(dialChecked, dialTotal));
         }
 
         card.appendChild(footer);

@@ -638,11 +638,25 @@ body {
 }
 
 /* ── Table Highlights ──────────────────────────────────────────────────────── */
-.table-card.table-hl-r::before { content: ''; display: block; height: 3px; background: rgba(255,80,80,0.65); flex-shrink: 0; }
-.table-card.table-hl-o::before { content: ''; display: block; height: 3px; background: rgba(255,160,50,0.65); flex-shrink: 0; }
-.table-card.table-hl-y::before { content: ''; display: block; height: 3px; background: rgba(250,220,50,0.65); flex-shrink: 0; }
-.table-card.table-hl-g::before { content: ''; display: block; height: 3px; background: rgba(80,200,100,0.65); flex-shrink: 0; }
-.table-card.table-hl-b::before { content: ''; display: block; height: 3px; background: rgba(60,140,255,0.65); flex-shrink: 0; }
+/* Dark mode: vivid backgrounds + black text */
+[data-mode="dark"] .table-card.table-hl-lime   { --hl-bar-bg: #c8f060; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-red    { --hl-bar-bg: #ff6b6b; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-pink   { --hl-bar-bg: #f06090; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-purple { --hl-bar-bg: #b070e8; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-yellow { --hl-bar-bg: #ffd040; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-blue   { --hl-bar-bg: #60b0f0; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-cyan   { --hl-bar-bg: #40c8c0; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+[data-mode="dark"] .table-card.table-hl-orange { --hl-bar-bg: #f08040; --hl-bar-text: rgba(0,0,0,0.82); --hl-bar-track: rgba(0,0,0,0.18); }
+
+/* Light mode: deeper/muted backgrounds + white text */
+[data-mode="light"] .table-card.table-hl-lime   { --hl-bar-bg: #7aaa10; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-red    { --hl-bar-bg: #d83030; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-pink   { --hl-bar-bg: #c83060; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-purple { --hl-bar-bg: #7840c8; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-yellow { --hl-bar-bg: #b88000; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-blue   { --hl-bar-bg: #2070c0; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-cyan   { --hl-bar-bg: #108880; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
+[data-mode="light"] .table-card.table-hl-orange { --hl-bar-bg: #c85010; --hl-bar-text: rgba(255,255,255,0.92); --hl-bar-track: rgba(255,255,255,0.3); }
 
 
 /* ── Collapsible grid wrapper ─────────────────────────────────────────────── */
@@ -670,6 +684,11 @@ body {
 /* Override any explicit card height when collapsed so it shrinks to footer */
 .table-card.collapsed {
   height: auto !important;
+}
+
+/* Prevent resizable min-height from creating a ghost ridge when collapsed */
+.table-card.collapsed .table-grid {
+  min-height: 0 !important;
 }
 
 /* Grid — flex:1 so it takes remaining space inside the card flex column */
@@ -774,6 +793,10 @@ body {
 .cell.empty {
   color: var(--text-dim);
 }
+
+/* Inline text formatting — **bold** and *italic* markers */
+.cell strong { font-weight: 700; }
+.cell em { font-style: italic; }
 
 .cell.has-url {
   color: #60a8f0;
@@ -975,25 +998,14 @@ body {
 
 
 /* Cell highlights */
-.cell.hl-r {
-  background: rgba(255, 80, 80, 0.10) !important;
-}
-
-.cell.hl-o {
-  background: rgba(255, 160, 50, 0.10) !important;
-}
-
-.cell.hl-y {
-  background: rgba(250, 220, 50, 0.10) !important;
-}
-
-.cell.hl-g {
-  background: rgba(80, 200, 100, 0.10) !important;
-}
-
-.cell.hl-b {
-  background: rgba(60, 140, 255, 0.10) !important;
-}
+.cell.hl-lime   { background: rgba(200,240,96,0.12)  !important; }
+.cell.hl-red    { background: rgba(255,107,107,0.12) !important; }
+.cell.hl-pink   { background: rgba(240,96,144,0.12)  !important; }
+.cell.hl-purple { background: rgba(176,112,232,0.12) !important; }
+.cell.hl-yellow { background: rgba(255,208,64,0.12)  !important; }
+.cell.hl-blue   { background: rgba(96,176,240,0.12)  !important; }
+.cell.hl-cyan   { background: rgba(64,200,192,0.12)  !important; }
+.cell.hl-orange { background: rgba(240,128,64,0.12)  !important; }
 
 /* Multi-cell drag selection */
 .cell.cell-selected {
@@ -1083,18 +1095,47 @@ body {
   color: var(--accent-txt);
 }
 
-/* ── Table Footer ──────────────────────────────────────────────────────────── */
+/* Header row spacer — replaces checkbox when excludeFirstRow is on */
+.cell-check--header {
+  pointer-events: none;
+  cursor: default;
+}
+
+.cell-check--header:hover {
+  background: var(--cell-bg);
+}
+
+/* Highlight coupling — spacer mirrors cell[0][0] highlight */
+.cell-check--hl-lime   { background: rgba(200,240,96,0.12)  !important; }
+.cell-check--hl-red    { background: rgba(255,107,107,0.12) !important; }
+.cell-check--hl-pink   { background: rgba(240,96,144,0.12)  !important; }
+.cell-check--hl-purple { background: rgba(176,112,232,0.12) !important; }
+.cell-check--hl-yellow { background: rgba(255,208,64,0.12)  !important; }
+.cell-check--hl-blue   { background: rgba(96,176,240,0.12)  !important; }
+.cell-check--hl-cyan   { background: rgba(64,200,192,0.12)  !important; }
+.cell-check--hl-orange { background: rgba(240,128,64,0.12)  !important; }
+
+/* ── Table Footer / Header controls bar ────────────────────────────────────── */
 .table-footer {
   background: var(--footer-bg);
   height: 32px;
   min-height: 32px;
   /* hard floor — never compress the footer */
   flex-shrink: 0;
-  /* footer always gets its 32px regardless of card height */
   display: flex;
   align-items: center;
   padding: 0 10px 0 4px;
   gap: 8px;
+}
+
+/* When controls bar is placed above the grid (header position) */
+.table-footer--header {
+  border-bottom: 1px solid var(--border);
+}
+
+/* When controls bar is placed below the grid (footer position, default) */
+.table-card:not(.controls-top) .table-footer {
+  border-top: 1px solid var(--border);
 }
 
 .pin-badge {
@@ -1103,7 +1144,7 @@ body {
   padding: 0 2px;
   margin-left: 4px;
   font-size: 10px;
-  color: var(--accent);
+  color: var(--hl-bar-text, var(--accent));
   opacity: 0.8;
   cursor: pointer;
   flex-shrink: 0;
@@ -1118,15 +1159,20 @@ body {
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text-mid);
+  color: var(--hl-bar-text, var(--text-mid));
   font-size: var(--font-size, 13px);
   font-weight: 600;
   letter-spacing: 0.06em;
   padding: 2px 4px;
   border-radius: 3px;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  /* Width is driven by JS (_sizeInput) to match exact content length */
+  flex: 0 0 auto;
   min-width: 40px;
-  max-width: 260px;
+  /* No max-width — .table-name-tag is width:fit-content so 100% would be
+     circular and clamp the input. JS _sizeInput controls the exact width. */
+  white-space: nowrap;
+  overflow: hidden;
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -1141,8 +1187,36 @@ body {
   box-shadow: 0 0 0 1px var(--border2);
 }
 
+
+/* Highlight name-tag — dynamic-width colored marker hugging pin + dial + name */
+.table-name-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-grow: 0;
+  width: fit-content;          /* hug exactly to content — no stretching */
+  background: var(--hl-bar-bg, transparent);
+  border-radius: 4px;
+  padding: 0 10px 0 0;         /* 10px right = "+10px past name end" */
+  margin-left: -2px;
+  transition: background 0.2s;
+}
+
+/* When a table is highlighted: flush the bar edge-to-edge inside the footer */
+.has-hl .table-name-tag {
+  align-self: stretch;         /* fill full 32px footer height — zero top/bottom gap */
+  align-items: center;         /* keep content vertically centred inside */
+  border-radius: 0;            /* square flush — no rounding against the footer edges */
+  margin-left: -4px;           /* cancel footer's 4px left padding → flush to left wall */
+  padding-left: 4px;           /* restore 4px internal breathing room for content */
+}
+
 .footer-spacer {
-  flex: 1;
+  /* Fills leftover space — this IS the double-click collapse zone.
+     min-width ensures it never disappears even with a long table name. */
+  flex: 1 1 80px;
+  min-width: 80px;
 }
 
 /* Checklist dial */
@@ -1161,13 +1235,13 @@ body {
 
 .dial-track {
   fill: none;
-  stroke: var(--border2);
+  stroke: var(--hl-bar-track, var(--border2));
   stroke-width: 2.5;
 }
 
 .dial-fill {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--hl-bar-text, var(--accent));
   stroke-width: 2.5;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.4s ease;
@@ -1180,7 +1254,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 7px;
-  color: var(--accent);
+  color: var(--hl-bar-text, var(--accent));
   font-weight: 600;
   pointer-events: none;
 }
@@ -1229,6 +1303,23 @@ body {
 .btn-options:hover {
   color: var(--text);
   background: var(--surface2);
+}
+
+/* Highlighted name-tag — hover/focus states get semi-transparent overlay over color */
+.table-card.has-hl .table-footer .table-name:hover {
+  background: rgba(0,0,0,0.12);
+  box-shadow: none;
+}
+[data-mode="light"] .table-card.has-hl .table-footer .table-name:hover {
+  background: rgba(255,255,255,0.22);
+}
+.table-card.has-hl .table-footer .table-name:focus {
+  background: rgba(0,0,0,0.12);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
+}
+[data-mode="light"] .table-card.has-hl .table-footer .table-name:focus {
+  background: rgba(255,255,255,0.22);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.35);
 }
 
 /* ── Context Menus (shared) ────────────────────────────────────────────────── */
@@ -1351,18 +1442,33 @@ body {
   opacity: 0.5;
 }
 
-/* Highlight swatches */
+/* Highlight swatches — single visible row + collapsible overflow row */
 .ctx-swatches {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 6px 10px;
   align-items: center;
 }
 
+.ctx-swatches-overflow {
+  display: flex;
+  flex-basis: 100%;
+  gap: 6px;
+  align-items: center;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.15s ease;
+}
+
+.ctx-swatches.expanded .ctx-swatches-overflow {
+  max-height: 30px;
+}
+
 .ctx-swatch {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
+  border-radius: 50%;
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: transform 0.1s;
@@ -1373,12 +1479,13 @@ body {
   transform: scale(1.2);
 }
 
-.ctx-swatch--clear {
+.ctx-swatch--clear,
+.ctx-swatch--expand {
   background: var(--border2) !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-dim);
 }
 
@@ -1436,7 +1543,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 8px;
-  padding: 22px;
+  padding: 14px 16px;
   width: 300px;
   box-shadow: 0 16px 60px rgba(0, 0, 0, 0.6);
   animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -1447,7 +1554,7 @@ body {
   letter-spacing: 0.12em;
   color: var(--accent);
   text-transform: uppercase;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .modal-input {
@@ -1455,18 +1562,26 @@ body {
   background: var(--bg);
   border: 1px solid var(--border2);
   border-radius: 4px;
-  padding: 8px 11px;
+  padding: 7px 10px;
   color: var(--text);
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
   outline: none;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   letter-spacing: 0.02em;
   transition: border-color 0.15s;
 }
 
 .modal-input:focus {
   border-color: var(--accent);
+}
+
+.modal-error {
+  font-size: 11px;
+  color: #f07070;
+  letter-spacing: 0.03em;
+  margin-top: -6px;
+  margin-bottom: 8px;
 }
 
 .modal-actions {
@@ -1479,7 +1594,7 @@ body {
   font-size: 12px;
   color: var(--text-mid);
   letter-spacing: 0.04em;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .confirm-dialog strong {
@@ -1489,15 +1604,40 @@ body {
 .confirm-row {
   display: flex;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 10px;
   justify-content: flex-end;
+}
+
+/* Move-to sheet picker */
+.move-sheet-list {
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 8px;
+}
+
+.move-sheet-option {
+  display: block;
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-mid);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.move-sheet-option:hover {
+  background: var(--surface2);
+  color: var(--text);
 }
 
 /* Import conflict modal */
 .modal-conflict-info {
   font-size: 12px;
   color: var(--text-mid);
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   letter-spacing: 0.03em;
 }
 
@@ -1508,8 +1648,8 @@ body {
 .modal-radio-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .modal-radio-option {
@@ -1519,7 +1659,7 @@ body {
   font-size: 12px;
   color: var(--text-mid);
   cursor: pointer;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: 4px;
   border: 1px solid var(--border2);
   transition: border-color 0.15s, color 0.15s;
@@ -1544,7 +1684,7 @@ body {
 
 /* Shared button styles */
 .btn-cancel {
-  padding: 6px 14px;
+  padding: 5px 12px;
   background: transparent;
   border: 1px solid hsla(0, 75%, 55%, 0.45);
   border-radius: 4px;
@@ -1568,7 +1708,7 @@ body {
 }
 
 .btn-confirm {
-  padding: 6px 14px;
+  padding: 5px 12px;
   background: var(--accent);
   border: none;
   border-radius: 4px;
@@ -1816,6 +1956,11 @@ body {
   flex-shrink: 0;
 }
 
+/* ── Table controls position — 1×2 grid picker ───────────────────────────── */
+.table-ctrl-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
 .toast-pos-btn {
   padding: 5px 10px;
   font-size: 10px;
@@ -1937,6 +2082,43 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Sub-option wrapper — slides down behind the checklist toggle */
+.ctx-sub-option-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.18s ease, opacity 0.14s ease;
+}
+
+.ctx-sub-option-wrapper.open {
+  max-height: 40px;
+  opacity: 1;
+}
+
+/* The sub-option item itself — indented with L-arrow prefix */
+.ctx-sub-option {
+  padding-left: 8px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  gap: 4px;
+  justify-content: flex-start;
+}
+
+.ctx-sub-option .toggle {
+  margin-left: auto;
+}
+
+.ctx-sub-option:hover {
+  color: var(--text-mid);
+}
+
+.ctx-sub-arrow {
+  color: var(--text-dim);
+  margin-right: 5px;
+  font-size: 10px;
+  flex-shrink: 0;
 }
 
 /* Column stepper */
@@ -2470,7 +2652,7 @@ body {
 }
 
 .modal-sm:has(.export-options) .modal-actions {
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .export-option {

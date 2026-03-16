@@ -21,6 +21,59 @@ const isMac = process.platform === 'darwin';
 const isWindows = process.platform === 'win32';
 
 let mainWindow;
+let splashWindow;
+
+// ── Splash helpers ────────────────────────────────────────────────────────────
+
+/** Send a log line to the splash screen (no-op if splash is gone). */
+function splashLog(line) {
+  try { splashWindow?.webContents?.send('splash:log', line); } catch { /* closed */ }
+}
+
+/** Read theme from settings.json without constructing SettingsService yet. */
+function readSplashTheme(userData) {
+  try {
+    const raw = fs.readFileSync(path.join(userData, 'settings.json'), 'utf-8');
+    const s   = JSON.parse(raw);
+    return {
+      mode:   s?.theme?.mode   || 'light',
+      accent: s?.theme?.accent || 'yellow',
+    };
+  } catch {
+    return { mode: 'light', accent: 'yellow' };
+  }
+}
+
+function createSplash(theme, version, platformLabel) {
+  splashWindow = new BrowserWindow({
+    width:           480,
+    height:          300,
+    frame:           false,
+    resizable:       false,
+    movable:         false,
+    alwaysOnTop:     true,
+    center:          true,
+    show:            false,
+    skipTaskbar:     true,
+    backgroundColor: theme.mode === 'light' ? '#f0ede8' : '#0a0a0a',
+    webPreferences: {
+      preload:          path.join(__dirname, 'splash-preload.js'),
+      contextIsolation: true,
+      nodeIntegration:  false,
+    },
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'), {
+    query: {
+      mode:     theme.mode,
+      accent:   theme.accent,
+      version,
+      platform: platformLabel,
+    },
+  });
+
+  splashWindow.once('ready-to-show', () => splashWindow.show());
+}
 
 function createWindow() {
   // Window configuration based on platform
@@ -29,6 +82,7 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    show: false,  // hidden until splash finishes
     ...(isWindows && { icon: path.join(__dirname, '../build/icon.ico') }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -273,6 +327,11 @@ ipcMain.handle('file:readText', async (_, filePath) => {
     console.error('Failed to read file:', error);
     throw error;
   }
+});
+
+// Check if a file exists on disk (used by renderer before open/preview)
+ipcMain.handle('file:exists', async (_, filePath) => {
+  return fs.existsSync(path.normalize(filePath));
 });
 
 // Open file with system default application
@@ -545,37 +604,68 @@ ipcMain.handle('path-to-file-url', async (_, filePath) => {
 
 // App lifecycle
 app.whenReady().then(async () => {
-  // Initialize database service
   const userData = app.getPath('userData');
-  dbService = new DatabaseService(userData);
+
+  // ── 1. Read persisted theme BEFORE any services load ─────────────────────
+  const splashTheme = readSplashTheme(userData);
+
+  // ── 2. Show splash immediately ────────────────────────────────────────────
+  createSplash(splashTheme, app.getVersion(), getOsLabel());
+
+  // Small pause so the splash has time to render before we block the main thread
+  await new Promise(r => setTimeout(r, 80));
+
+  // ── 3. Initialize services with live log feedback ─────────────────────────
+  splashLog(`platform: ${getOsLabel()}`);
+
+  splashLog('initializing settings...');
   settingsService = new SettingsService(userData);
-  exportImportService = new ExportImportService(__dirname);
+  const savedSettings = settingsService.get();
+  splashLog('initializing settings...  [ok]');
+
+  splashLog(`loading theme: ${splashTheme.mode} / ${splashTheme.accent}  [ok]`);
 
   // Apply launch-on-startup setting from persisted state
-  const savedSettings = settingsService.get();
   app.setLoginItemSettings({ openAtLogin: !!savedSettings?.general?.launchOnStartup });
 
-  // Guarantee "home" sheet exists on every launch
+  splashLog('initializing database...');
+  dbService = new DatabaseService(userData);
+  splashLog('initializing database...  [ok]');
+
+  splashLog('ensuring home sheet...');
   await dbService.ensureHomeSheet();
+  splashLog('ensuring home sheet...  [ok]');
 
-  // Create images directory if it doesn't exist
-  const imagesDir = path.join(app.getPath('userData'), 'images');
-  if (!fs.existsSync(imagesDir)) {
-    fs.mkdirSync(imagesDir, { recursive: true });
-  }
+  exportImportService = new ExportImportService(__dirname);
 
-  // Create files directory if it doesn't exist
-  const filesDir = path.join(app.getPath('userData'), 'files');
-  if (!fs.existsSync(filesDir)) {
-    fs.mkdirSync(filesDir, { recursive: true });
-  }
+  splashLog('preparing file system...');
+  const imagesDir = path.join(userData, 'images');
+  if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+  const filesDir = path.join(userData, 'files');
+  if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+  splashLog('preparing file system...  [ok]');
 
+  // ── 4. Create main window hidden, wait for it to load ────────────────────
+  splashLog('loading renderer...');
   createWindow();
 
+  mainWindow.webContents.once('did-finish-load', () => {
+    splashLog('ready.  [ok]');
+
+    // Signal splash to fade out, then show main window
+    setTimeout(() => {
+      try { splashWindow?.webContents?.send('splash:ready'); } catch { /* closed */ }
+    }, 120);
+
+    setTimeout(() => {
+      mainWindow?.show();
+      try { splashWindow?.close(); } catch { /* already closed */ }
+      splashWindow = null;
+    }, 550);
+  });
+
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 

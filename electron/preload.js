@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electron', {
         readText: (filePath) => ipcRenderer.invoke('file:readText', filePath),
         open: (filePath) => ipcRenderer.invoke('file:open', filePath),
         reveal: (filePath) => ipcRenderer.invoke('file:reveal', filePath),
+        exists: (filePath) => ipcRenderer.invoke('file:exists', filePath),
     },
 
     // Native file drag-out — hands file to OS, works with Claude, Finder, etc.

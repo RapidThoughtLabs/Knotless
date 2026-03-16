@@ -5,36 +5,31 @@
  * Extends OptionsMenu base for shared show/hide/position logic.
  *
  * Actions dispatched: 'pin', 'unpin', 'add-col', 'remove-col',
- *   'toggle-checklist', 'delete-table', 'table-highlight', 'clear-table-highlight'
+ *   'toggle-checklist', 'toggle-exclude-first-row', 'move-to',
+ *   'delete-table', 'table-highlight', 'clear-table-highlight'
  */
 
 import { OptionsMenu } from './options-menu-base.js';
-import { HIGHLIGHT_COLORS } from './context-menu.js';
+import { buildSwatchHTML } from './context-menu.js';
 
-const TABLE_SWATCH_HTML = HIGHLIGHT_COLORS.map(h =>
-    `<div class="ctx-swatch" data-highlight="${h.key}" title="${h.label} Highlight" style="background:${h.color};"></div>`
-).join('') + `<div class="ctx-swatch ctx-swatch--clear" data-action="clear-table-highlight" title="Remove highlight">✕</div>`;
+const TABLE_SWATCH_HTML = buildSwatchHTML(' Highlight');
 
 export class TableOptionsMenu extends OptionsMenu {
     /**
      * @param {Function} onAction - (action, tableId) => void
      */
     constructor(onAction) {
-        // Wrap so base class signature (action, data) maps to (action, tableId)
-        super('table-options-menu', (action, data) => onAction(action, data.tableId));
+        // Highlight actions need the full data object (carries `key`); others just need tableId
+        super('table-options-menu', (action, data) => {
+            if (action === 'table-highlight' || action === 'clear-table-highlight') {
+                onAction(action, data);
+            } else {
+                onAction(action, data.tableId);
+            }
+        });
     }
 
-    /**
-     * Show options menu for a given table.
-     * @param {HTMLElement} anchorEl - The ⋯ button
-     * @param {string} tableId
-     * @param {Object} tableData - { pinned, checklist, columns }
-     */
-    show(anchorEl, tableId, tableData) {
-        super.show(anchorEl, { tableId, ...tableData }, 'right');
-    }
-
-    buildHTML({ pinned, checklist, columns }) {
+    buildHTML({ pinned, checklist, columns, excludeFirstRow }) {
         return `
             <div class="ctx-item" data-action="${pinned ? 'unpin' : 'pin'}">
                 ${pinned ? 'unpin ↓' : 'pin to top ↑'}
@@ -51,20 +46,37 @@ export class TableOptionsMenu extends OptionsMenu {
                 checklist
                 <div class="toggle toggle-sm ${checklist ? 'on' : ''}"></div>
             </div>
+            <div class="ctx-sub-option-wrapper${checklist ? ' open' : ''}">
+                <div class="ctx-item ctx-toggle-row ctx-sub-option" data-action="toggle-exclude-first-row">
+                    <span class="ctx-sub-arrow">↳</span> exclude first row
+                    <div class="toggle toggle-sm ${excludeFirstRow ? 'on' : ''}"></div>
+                </div>
+            </div>
             <div class="ctx-divider"></div>
-            <div class="ctx-item ctx-highlight-trigger">highlight <span class="ctx-arrow">›</span></div>
+            <div class="ctx-item" data-action="move-to">move to →</div>
+            <div class="ctx-divider"></div>
+            <div class="ctx-item ctx-highlight-trigger">highlight</div>
             <div class="ctx-swatches">${TABLE_SWATCH_HTML}</div>
             <div class="ctx-divider"></div>
             <div class="ctx-item ctx-danger" data-action="delete-table">delete table</div>
         `;
     }
 
-    /** Catch swatch clicks before they hit the default action handler */
+    /** Catch swatch clicks + handle in-place toggle actions */
     show(anchorEl, tableId, tableData) {
         super.show(anchorEl, { tableId, ...tableData }, 'right');
-        
-        // Override onclick to handle swatches properly
+
+        // Override onclick to handle swatches + in-place toggles
         this._el.onclick = (e) => {
+            // Swatch row expand/collapse — never closes the menu
+            const expandToggle = e.target.closest('[data-action="toggle-swatches"]');
+            if (expandToggle) {
+                const swatchesEl = expandToggle.closest('.ctx-swatches');
+                const isExpanded = swatchesEl?.classList.toggle('expanded');
+                expandToggle.textContent = isExpanded ? '▴' : '▾';
+                return;
+            }
+
             const swatch = e.target.closest('[data-highlight]');
             if (swatch) {
                 const key = swatch.dataset.highlight;
@@ -77,13 +89,36 @@ export class TableOptionsMenu extends OptionsMenu {
             if (!item) return;
             const action = item.dataset.action;
             if (item.classList.contains('ctx-disabled')) return;
-            
-            // For clear-table-highlight, pass the action with tableId
-            if (action === 'clear-table-highlight') {
+
+            if (action === 'toggle-checklist') {
+                // Flip the toggle pill in-place
+                const toggleEl = item.querySelector('.toggle');
+                const isNowOn = !toggleEl?.classList.contains('on');
+                toggleEl?.classList.toggle('on', isNowOn);
+                this._data = { ...this._data, checklist: isNowOn };
+
+                // Animate sub-option wrapper in/out
+                const wrapper = this._el.querySelector('.ctx-sub-option-wrapper');
+                if (wrapper) {
+                    wrapper.classList.toggle('open', isNowOn);
+                }
+
                 this._onAction(action, { tableId: this._data.tableId });
-            } else {
-                this._onAction(action, { tableId: this._data.tableId });
+                return; // don't close menu
             }
+
+            if (action === 'toggle-exclude-first-row') {
+                // Flip the sub-option toggle in-place
+                const toggleEl = item.querySelector('.toggle');
+                const isNowOn = !toggleEl?.classList.contains('on');
+                toggleEl?.classList.toggle('on', isNowOn);
+                this._data = { ...this._data, excludeFirstRow: isNowOn };
+
+                this._onAction(action, { tableId: this._data.tableId });
+                return; // don't close menu
+            }
+
+            this._onAction(action, { tableId: this._data.tableId });
             this.hide();
         };
     }

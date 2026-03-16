@@ -55,6 +55,8 @@ export class OptionsMenu {
         document.addEventListener('rtl:any-menu-open', (e) => {
             if (e.detail?.id !== this._id) this.hide();
         });
+        // Close on scroll — menu is positionally anchored; scrolling orphans it
+        window.addEventListener('scroll', () => { if (this.isVisible) this.hide(); }, { capture: true, passive: true });
     }
 
     /**

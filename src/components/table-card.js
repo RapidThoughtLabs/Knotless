@@ -12,6 +12,153 @@
 import { TableFooter } from './table-footer.js';
 import { HIGHLIGHT_COLORS } from './context-menu.js';
 import { showToast } from './toast.js';
+import { showFileMissingModal } from './modals.js';
+
+// ── Inline text formatting ─────────────────────────────────────────────────
+// Supports markdown-style markers: **bold**, *italic*, ***bold+italic***
+// Data is stored as plain text with markers; only display uses HTML.
+
+// Strip all formatting markers from a value — used for clipboard copy so
+// the user gets clean plain text without **asterisks** or *stars*.
+export function stripFormatMarkers(val) {
+    if (!val) return '';
+    return val.replace(/\*{1,3}(.+?)\*{1,3}/gs, '$1');
+}
+
+export function renderFormattedText(val) {
+    if (!val) return '';
+    // Escape HTML first to prevent XSS
+    const esc = val
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    // Apply formatting — order matters: *** before ** before *
+    return esc
+        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+
+// Get the absolute character offset of a (container, offset) pair within a cell.
+// Works across multiple text nodes created by prior insertions.
+function getAbsoluteOffset(cell, container, offset) {
+    if (container === cell) return offset;
+    let pos = 0;
+    const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (node === container) return pos + offset;
+        pos += node.length;
+    }
+    return pos;
+}
+
+// Toggle bold (**) or italic (*) markers on the current selection.
+//
+// Toggle rules (marker = '**' or '*'):
+//   - No selection     → insert empty marker pair at cursor
+//   - Selected text carries its own markers (e.g. "**hi**" selected) → strip them
+//   - Inner text selected inside context markers ("hi" inside **hi**) → strip context markers
+//   - Neither          → wrap with marker
+//
+// Bold+italic coexist: "**hi**" + Cmd+I → "***hi***"; "***hi***" + Cmd+B → "*hi*"
+function wrapSelectionWithMarker(cell, marker) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!cell.contains(range.commonAncestorContainer)) return;
+
+    const m = marker.length; // 1 for *, 2 for **
+
+    // ── No selection: insert empty marker pair at cursor ──────────────────
+    if (range.collapsed) {
+        const ph = document.createTextNode(marker + marker);
+        range.insertNode(ph);
+        const nr = document.createRange();
+        nr.setStart(ph, m);
+        nr.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(nr);
+        return;
+    }
+
+    // ── Get char offsets and selected substring from full cell text ────────
+    const fullText = cell.textContent;
+    const s = getAbsoluteOffset(cell, range.startContainer, range.startOffset);
+    const e = getAbsoluteOffset(cell, range.endContainer, range.endOffset);
+    const selected = fullText.slice(s, e);
+
+    // Count symmetric asterisks at start/end of selected text itself
+    let selLead = 0;
+    for (const ch of selected) { if (ch === '*') selLead++; else break; }
+    let selTrail = 0;
+    for (let k = selected.length - 1; k >= 0; k--) { if (selected[k] === '*') selTrail++; else break; }
+    const selSym = Math.min(selLead, selTrail);
+
+    // Count asterisks immediately surrounding the selection in context
+    let ctxBefore = 0, ci = s - 1;
+    while (ci >= 0 && fullText[ci] === '*') { ctxBefore++; ci--; }
+    let ctxAfter = 0, cj = e;
+    while (cj < fullText.length && fullText[cj] === '*') { ctxAfter++; cj++; }
+    const ctxSym = Math.min(ctxBefore, ctxAfter);
+
+    // Effective star count: prefer selection's own markers, fall back to context
+    const totalSym = selSym > 0 ? selSym : ctxSym;
+    const currentlyBold   = totalSym >= 2;
+    const currentlyItalic = totalSym % 2 === 1;
+
+    let newText, newSelStart, newSelEnd;
+
+    if (m === 2) {
+        // ── Toggle bold ──────────────────────────────────────────────────
+        if (currentlyBold) {
+            if (selSym >= 2) {
+                // Strip 2 stars from each end of selected text
+                const inner = selected.slice(2, selected.length - 2);
+                newText = fullText.slice(0, s) + inner + fullText.slice(e);
+                newSelStart = s; newSelEnd = s + inner.length;
+            } else {
+                // Strip 2 context stars from each side
+                newText = fullText.slice(0, s - 2) + selected + fullText.slice(e + 2);
+                newSelStart = s - 2; newSelEnd = s - 2 + selected.length;
+            }
+        } else {
+            const w = '**' + selected + '**';
+            newText = fullText.slice(0, s) + w + fullText.slice(e);
+            newSelStart = s; newSelEnd = s + w.length;
+        }
+    } else {
+        // ── Toggle italic ────────────────────────────────────────────────
+        if (currentlyItalic) {
+            if (selSym % 2 === 1) {
+                // Strip 1 star from each end of selected text
+                const inner = selected.slice(1, selected.length - 1);
+                newText = fullText.slice(0, s) + inner + fullText.slice(e);
+                newSelStart = s; newSelEnd = s + inner.length;
+            } else if (ctxSym % 2 === 1) {
+                // Strip 1 context star from each side
+                newText = fullText.slice(0, s - 1) + selected + fullText.slice(e + 1);
+                newSelStart = s - 1; newSelEnd = s - 1 + selected.length;
+            }
+        } else {
+            const w = '*' + selected + '*';
+            newText = fullText.slice(0, s) + w + fullText.slice(e);
+            newSelStart = s; newSelEnd = s + w.length;
+        }
+    }
+
+    if (newText !== undefined) {
+        cell.textContent = newText;
+        const textNode = cell.firstChild;
+        if (textNode) {
+            const nr = document.createRange();
+            nr.setStart(textNode, Math.max(0, Math.min(newSelStart, newText.length)));
+            nr.setEnd(textNode,   Math.max(0, Math.min(newSelEnd,   newText.length)));
+            sel.removeAllRanges();
+            sel.addRange(nr);
+        }
+    }
+}
 
 // — Image cell detection helpers —
 const IMG_PREFIX = 'IMG:';
@@ -219,10 +366,10 @@ export class TableCard {
 
     /** Build and return the card element */
     create() {
-        const { _id, columns, data = [], pinned, checklist, checked = [], highlights = {}, highlight } = this._table;
+        const { _id, columns, data = [], pinned, checklist, checked = [], highlights = {}, highlight, excludeFirstRow } = this._table;
 
         const el = document.createElement('div');
-        const hlClass = highlight ? ` table-${highlight}` : '';
+        const hlClass = highlight ? ` table-${highlight} has-hl` : '';
         el.className = `table-card${pinned ? ' pinned' : ''}${hlClass}`;
         el.dataset.tableId = _id;
 
@@ -239,18 +386,27 @@ export class TableCard {
 
             // Checklist checkbox cell
             if (checklist) {
-                const checkCell = document.createElement('div');
-                checkCell.className = 'cell-check';
-                checkCell.dataset.row = rIdx;
-                checkCell.dataset.tableId = _id;
+                const isExcluded = excludeFirstRow && rIdx === 0;
+                if (isExcluded) {
+                    // Spacer that mirrors cell[0][0]'s highlight
+                    const spacer = document.createElement('div');
+                    const cell00Hl = highlights['0-0'];
+                    spacer.className = `cell-check cell-check--header${cell00Hl ? ` cell-check--${cell00Hl}` : ''}`;
+                    rowEl.appendChild(spacer);
+                } else {
+                    const checkCell = document.createElement('div');
+                    checkCell.className = 'cell-check';
+                    checkCell.dataset.row = rIdx;
+                    checkCell.dataset.tableId = _id;
 
-                const box = document.createElement('div');
-                box.className = `checkbox${checked[rIdx] ? ' checked' : ''}`;
-                box.textContent = checked[rIdx] ? '✓' : '';
-                checkCell.appendChild(box);
+                    const box = document.createElement('div');
+                    box.className = `checkbox${checked[rIdx] ? ' checked' : ''}`;
+                    box.textContent = checked[rIdx] ? '✓' : '';
+                    checkCell.appendChild(box);
 
-                checkCell.addEventListener('click', () => this._toggleCheck(rIdx));
-                rowEl.appendChild(checkCell);
+                    checkCell.addEventListener('click', () => this._toggleCheck(rIdx));
+                    rowEl.appendChild(checkCell);
+                }
             }
 
             // Data cells
@@ -271,15 +427,23 @@ export class TableCard {
         gridWrapper.appendChild(grid);
         el.appendChild(gridWrapper);
 
-        // ── Footer ────────────────────────────────────────────────────────────
+        // ── Footer / Header controls bar ──────────────────────────────────────
+        const controlsPos = this._cb.controlsPosition ?? 'footer';
         this._footer = new TableFooter(this._table, {
             onNameChange: this._cb.onNameChange,
             onAddRow: this._cb.onAddRow,
             onOptions: this._cb.onOptions,
             onMoveUp: this._cb.onMoveUp,
             onCollapse: () => this._toggleCollapse(),
+            position: controlsPos,
         });
-        el.appendChild(this._footer.create());
+        const footerEl = this._footer.create();
+        if (controlsPos === 'header') {
+            el.classList.add('controls-top');
+            el.insertBefore(footerEl, gridWrapper);
+        } else {
+            el.appendChild(footerEl);
+        }
 
         // ── Apply saved card height ────────────────────────────────────────────
         if (this._table.cardHeight) {
@@ -308,6 +472,7 @@ export class TableCard {
         const nowCollapsed = !this._el.classList.contains('collapsed');
         this._table.collapsed = nowCollapsed;
         this._el.classList.toggle('collapsed', nowCollapsed);
+        if (!nowCollapsed) this._clearSavedHeight();
         this._cb.onCollapse?.(this._table._id, nowCollapsed);
     }
 
@@ -316,7 +481,16 @@ export class TableCard {
         if (!this._el?.classList.contains('collapsed')) return;
         this._table.collapsed = false;
         this._el.classList.remove('collapsed');
+        this._clearSavedHeight();
         this._cb.onCollapse?.(this._table._id, false);
+    }
+
+    /** Clear any manually-set height so the card expands to its natural full height */
+    _clearSavedHeight() {
+        this._el.style.height = '';
+        this._el.classList.remove('resizable');
+        this._table.cardHeight = null;
+        this._cb.onResize?.(this._table._id, null);
     }
 
     rerender(newTable) {
@@ -341,14 +515,24 @@ export class TableCard {
         // Remove old highlight classes
         HIGHLIGHT_COLORS.forEach(h => cellEl.classList.remove(h.key));
         if (hlKey) cellEl.classList.add(hlKey);
+
+        // Keep the excluded-first-row spacer coupled to cell[0][0]'s highlight
+        if (row === 0 && col === 0) {
+            const spacer = this._el?.querySelector('.cell-check--header');
+            if (spacer) {
+                HIGHLIGHT_COLORS.forEach(h => spacer.classList.remove(`cell-check--${h.key}`));
+                if (hlKey) spacer.classList.add(`cell-check--${hlKey}`);
+            }
+        }
     }
 
     /** Update table highlight in-place */
     updateTableHighlight(hlKey) {
         if (!this._el) return;
         HIGHLIGHT_COLORS.forEach(h => this._el.classList.remove(`table-${h.key}`));
+        this._el.classList.remove('has-hl');
         if (hlKey) {
-            this._el.classList.add(`table-${hlKey}`);
+            this._el.classList.add(`table-${hlKey}`, 'has-hl');
             this._table.highlight = hlKey;
         } else {
             delete this._table.highlight;
@@ -448,7 +632,7 @@ export class TableCard {
             const cls = cellTypeClass(val);
             if (cls) cell.classList.add(cls);
             cell.contentEditable = 'true';
-            cell.textContent = val;
+            cell.innerHTML = renderFormattedText(val);
         }
     }
 
@@ -466,12 +650,24 @@ export class TableCard {
     _bindCellEvents(cell) {
         const { _id } = this._table;
 
-        // Focus / editable
+        // Focus / editable — switch to raw text so markers are visible for editing
         cell.addEventListener('focus', () => {
             cell.classList.add('focused');
+            if (cell.classList.contains('has-image') || cell.classList.contains('has-file')) return;
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            const rawVal = this._table.data?.[row]?.[col] ?? '';
+            cell.textContent = rawVal;
+            // Restore cursor to end of content
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
         });
 
-        // Blur → save
+        // Blur → save raw text then re-render formatted
         cell.addEventListener('blur', async () => {
             cell.classList.remove('focused');
             if (cell.classList.contains('has-image')) return;
@@ -482,6 +678,8 @@ export class TableCard {
             // Re-apply content-type class so color updates immediately on blur
             this._refreshCellTypeClass(cell);
             this._cb.onCellUpdate?.(_id, row, col, val);
+            // Re-render with formatting applied
+            cell.innerHTML = renderFormattedText(val);
         });
 
         // Enter key blurs (no newlines in cells).
@@ -490,12 +688,27 @@ export class TableCard {
         cell.addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') { e.preventDefault(); cell.blur(); }
 
+            // Bold: Cmd/Ctrl+B — wrap selection or cursor with **
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+                e.preventDefault();
+                wrapSelectionWithMarker(cell, '**');
+                return;
+            }
+
+            // Italic: Cmd/Ctrl+I — wrap selection or cursor with *
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'i' || e.key === 'I')) {
+                e.preventDefault();
+                wrapSelectionWithMarker(cell, '*');
+                return;
+            }
+
             if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
                 const sel = window.getSelection();
                 if (sel && sel.isCollapsed) {
-                    // Nothing selected — copy the entire cell value
+                    // Nothing selected — copy the entire cell value (plain text, no markers)
                     e.preventDefault();
-                    const val = cell.textContent.trim();
+                    const raw = this._table.data?.[parseInt(cell.dataset.row)]?.[parseInt(cell.dataset.col)] ?? '';
+                    const val = stripFormatMarkers(raw).trim();
                     if (val) {
                         navigator.clipboard.writeText(val)
                             .then(() => showToast('copied', 'success'))
@@ -532,13 +745,26 @@ export class TableCard {
         // Double-click on text cells → select all text (like a normal editor).
         // Image cells: no action on double-click.
         // File cells: double-click opens the file with system default app.
-        cell.addEventListener('dblclick', (e) => {
+        cell.addEventListener('dblclick', async (e) => {
             if (cell.classList.contains('has-file')) {
                 const row = parseInt(cell.dataset.row);
                 const col = parseInt(cell.dataset.col);
                 const val = this._table.data?.[row]?.[col] ?? '';
                 if (isFileCell(val)) {
-                    const { filePath } = parseFileValue(val);
+                    const { filePath, originalName } = parseFileValue(val);
+                    const exists = await window.electron?.files?.exists?.(filePath);
+                    if (!exists) {
+                        const shouldClear = await showFileMissingModal(originalName);
+                        if (shouldClear) {
+                            if (this._table.data[row]) this._table.data[row][col] = '';
+                            this._renderCellContent(cell, '');
+                            this._cb.onCellUpdate?.(this._table._id, row, col, '');
+                            if (this._table.highlights) delete this._table.highlights[`${row}-${col}`];
+                            this.updateHighlight(row, col, null);
+                            this._cb.onHighlight?.(this._table._id, row, col, null);
+                        }
+                        return;
+                    }
                     window.electron?.files?.open?.(filePath);
                 }
                 return;
@@ -549,6 +775,20 @@ export class TableCard {
                 const val = this._table.data?.[row]?.[col] ?? '';
                 if (isImageCell(val)) {
                     const imgPath = getImagePath(val);
+                    const exists = await window.electron?.files?.exists?.(imgPath);
+                    if (!exists) {
+                        const fileName = imgPath.split('/').pop().split('\\').pop() || 'image';
+                        const shouldClear = await showFileMissingModal(fileName);
+                        if (shouldClear) {
+                            if (this._table.data[row]) this._table.data[row][col] = '';
+                            this._renderCellContent(cell, '');
+                            this._cb.onCellUpdate?.(this._table._id, row, col, '');
+                            if (this._table.highlights) delete this._table.highlights[`${row}-${col}`];
+                            this.updateHighlight(row, col, null);
+                            this._cb.onHighlight?.(this._table._id, row, col, null);
+                        }
+                        return;
+                    }
                     const ext     = imgPath.split('.').pop().toLowerCase();
                     const type    = ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext) ? 'video' : 'image';
                     const mode    = document.documentElement.dataset.mode   || 'dark';
@@ -880,8 +1120,9 @@ export class TableCard {
             } catch { showToast('copy failed', 'error'); }
         } else {
             if (!val.trim()) return; // nothing to copy
-            await navigator.clipboard.writeText(val);
-            const preview = val.length > 24 ? val.substring(0, 24) + '…' : val;
+            const plain = stripFormatMarkers(val);
+            await navigator.clipboard.writeText(plain);
+            const preview = plain.length > 24 ? plain.substring(0, 24) + '…' : plain;
             showToast(`copied "${preview}"`, 'success');
         }
     }
@@ -964,6 +1205,9 @@ export class TableCard {
     }
 
     _toggleCheck(rowIndex) {
+        // Row 0 is excluded from checklist when excludeFirstRow is on
+        if (rowIndex === 0 && this._table.excludeFirstRow) return;
+
         const { _id, checked = [] } = this._table;
         const newChecked = [...checked];
         newChecked[rowIndex] = !newChecked[rowIndex];
@@ -976,9 +1220,10 @@ export class TableCard {
             box.textContent = newChecked[rowIndex] ? '\u2713' : '';
         }
 
-        // Update dial
-        const total = this._table.data?.length ?? 0;
-        this._footer?.updateDial(newChecked, total);
+        // Update dial — skip row 0 when excluded
+        const skip = this._table.excludeFirstRow ? 1 : 0;
+        const total = Math.max(0, (this._table.data?.length ?? 0) - skip);
+        this._footer?.updateDial(newChecked.slice(skip), total);
 
         this._cb.onCheckedUpdate?.(_id, rowIndex, newChecked[rowIndex]);
     }
@@ -1004,7 +1249,7 @@ export class TableCard {
         const cellDisplayText = (v) => {
             if (isImageCell(v)) return '[image]';
             if (isFileCell(v)) return parseFileValue(v).originalName;
-            return v;
+            return stripFormatMarkers(v);
         };
 
         const tsv = sortedRows.map(([, colMap]) => {
@@ -1220,6 +1465,14 @@ export class TableCard {
         el.addEventListener('mouseleave', () => {
             if (!this._resizeDrag.active) el.style.cursor = '';
         });
+
+        // Prevent double-click on the resize zone from accidentally triggering collapse
+        el.addEventListener('dblclick', (e) => {
+            const rect = el.getBoundingClientRect();
+            if (e.clientY >= rect.bottom - HANDLE_ZONE) {
+                e.stopPropagation();
+            }
+        }, { capture: true });
 
         el.addEventListener('mousedown', (e) => {
             const rect = el.getBoundingClientRect();

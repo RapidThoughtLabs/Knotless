@@ -20,19 +20,36 @@
 
 import { showToast } from './toast.js';
 
-// Fixed highlight colours matching V2 design (row bg at 10% opacity)
+// Highlight colours — exact match to RTL accent swatch palette
 export const HIGHLIGHT_COLORS = [
-    { key: 'hl-r', label: 'Red',    color: 'rgba(255,80,80,0.65)',   bg: 'rgba(255,80,80,0.10)' },
-    { key: 'hl-o', label: 'Orange', color: 'rgba(255,160,50,0.65)',  bg: 'rgba(255,160,50,0.10)' },
-    { key: 'hl-y', label: 'Yellow', color: 'rgba(250,220,50,0.65)',  bg: 'rgba(250,220,50,0.10)' },
-    { key: 'hl-g', label: 'Green',  color: 'rgba(80,200,100,0.65)',  bg: 'rgba(80,200,100,0.10)' },
-    { key: 'hl-b', label: 'Blue',   color: 'rgba(60,140,255,0.65)',  bg: 'rgba(60,140,255,0.10)' },
+    { key: 'hl-lime',   label: 'Lime',   color: '#c8f060', bg: 'rgba(200,240,96,0.12)'   },
+    { key: 'hl-red',    label: 'Red',    color: '#ff6b6b', bg: 'rgba(255,107,107,0.12)'  },
+    { key: 'hl-pink',   label: 'Pink',   color: '#f06090', bg: 'rgba(240,96,144,0.12)'   },
+    { key: 'hl-purple', label: 'Purple', color: '#b070e8', bg: 'rgba(176,112,232,0.12)'  },
+    { key: 'hl-yellow', label: 'Yellow', color: '#ffd040', bg: 'rgba(255,208,64,0.12)'   },
+    { key: 'hl-blue',   label: 'Blue',   color: '#60b0f0', bg: 'rgba(96,176,240,0.12)'   },
+    { key: 'hl-cyan',   label: 'Cyan',   color: '#40c8c0', bg: 'rgba(64,200,192,0.12)'   },
+    { key: 'hl-orange', label: 'Orange', color: '#f08040', bg: 'rgba(240,128,64,0.12)'   },
 ];
 
-// ── Highlight swatches HTML (reused in every menu variant) ────────────────────
-const SWATCH_HTML = HIGHLIGHT_COLORS.map(h =>
-    `<div class="ctx-swatch" data-highlight="${h.key}" title="${h.label}" style="background:${h.color};"></div>`
-).join('') + `<div class="ctx-swatch ctx-swatch--clear" data-action="clear-highlight" title="Remove highlight">✕</div>`;
+// ── Highlight swatches HTML builder ───────────────────────────────────────────
+// Row 1 (always visible): lime, red, pink, purple, orange  ← 5 + chevron = 6 items/row
+// Row 2 (expandable):     yellow, blue, cyan + clear
+const _ROW1_IDX = [0, 1, 2, 3, 7]; // indices into HIGHLIGHT_COLORS
+const _ROW2_IDX = [4, 5, 6];
+
+export function buildSwatchHTML(titleSuffix = '') {
+    const swatch = (h) =>
+        `<div class="ctx-swatch" data-highlight="${h.key}" title="${h.label}${titleSuffix}" style="background:${h.color};"></div>`;
+
+    const row1 = _ROW1_IDX.map(i => swatch(HIGHLIGHT_COLORS[i])).join('');
+    const chevron = `<div class="ctx-swatch ctx-swatch--expand" data-action="toggle-swatches" title="More colors">▾</div>`;
+    const row2 = _ROW2_IDX.map(i => swatch(HIGHLIGHT_COLORS[i])).join('');
+
+    return `${row1}${chevron}<div class="ctx-swatches-overflow">${row2}</div>`;
+}
+
+const SWATCH_HTML = buildSwatchHTML();
 
 // ── Single builder — composes the 4-group layout per cell type ────────────────
 function buildMenuHTML(cellType) {
@@ -78,7 +95,7 @@ function buildMenuHTML(cellType) {
 
     // ── Group 3: Highlight — every cell type ─────────────────────────────────
     html += `<div class="ctx-divider"></div>`;
-    html += `<div class="ctx-item ctx-highlight-trigger">highlight <span class="ctx-arrow">›</span></div>`;
+    html += `<div class="ctx-item ctx-highlight-trigger">highlight</div>`;
     html += `<div class="ctx-swatches">${SWATCH_HTML}</div>`;
 
     // ── Group 4: Danger ──────────────────────────────────────────────────────
@@ -188,6 +205,15 @@ export class CellContextMenu {
 
         // Action items — use event delegation (innerHTML is rebuilt on every show())
         el.addEventListener('click', (e) => {
+            // Swatch row expand/collapse — never closes the menu
+            const expandToggle = e.target.closest('[data-action="toggle-swatches"]');
+            if (expandToggle) {
+                const swatchesEl = expandToggle.closest('.ctx-swatches');
+                const isExpanded = swatchesEl?.classList.toggle('expanded');
+                expandToggle.textContent = isExpanded ? '▴' : '▾';
+                return;
+            }
+
             const item   = e.target.closest('[data-action]');
             const swatch = e.target.closest('[data-highlight]');
 
@@ -219,6 +245,9 @@ export class CellContextMenu {
         document.addEventListener('rtl:any-menu-open', (e) => {
             if (e.detail?.id !== 'cell-ctx-menu') this.hide();
         });
+
+        // Close on scroll — menu is positionally anchored; scrolling orphans it
+        window.addEventListener('scroll', () => { if (!this._el?.classList.contains('ctx-menu--hidden')) this.hide(); }, { capture: true, passive: true });
 
         // Prevent right-click on menu from re-triggering
         el.addEventListener('contextmenu', (e) => e.preventDefault());

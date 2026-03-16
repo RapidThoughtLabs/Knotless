@@ -37,25 +37,29 @@ export class TableFooter {
      * @param {Function} callbacks.onAddRow      - (tableId) => void
      * @param {Function} callbacks.onOptions     - (optionsBtnEl, tableId, tableData) => void
      */
-    constructor(table, { onNameChange, onAddRow, onOptions, onMoveUp, onCollapse } = {}) {
+    constructor(table, { onNameChange, onAddRow, onOptions, onMoveUp, onCollapse, position = 'footer' } = {}) {
         this._table = table;
         this._cb = { onNameChange, onAddRow, onOptions, onMoveUp, onCollapse };
+        this._position = position;
         this._el = null;
     }
 
     create() {
-        const { _id, name, pinned, checklist, checked = [] } = this._table;
-        const checkedCount = checked.filter(Boolean).length;
-        const totalRows = this._table.data?.length ?? 0;
+        const { _id, name, pinned, checklist, checked = [], excludeFirstRow } = this._table;
+        const skip = excludeFirstRow ? 1 : 0;
+        const checkedCount = checked.slice(skip).filter(Boolean).length;
+        const totalRows = Math.max(0, (this._table.data?.length ?? 0) - skip);
         const pct = (checklist && totalRows > 0) ? Math.round((checkedCount / totalRows) * 100) : 0;
 
         const el = document.createElement('div');
-        el.className = 'table-footer';
+        el.className = this._position === 'header' ? 'table-footer table-footer--header' : 'table-footer';
         el.dataset.tableId = _id;
         el.innerHTML = `
-            ${pinned ? `<button class="pin-badge" data-table-id="${_id}" title="Click to move up">↑</button>` : ''}
-            ${checklist ? buildDial(pct) : ''}
-            <input class="table-name" value="${escapeAttr(name)}" data-table-id="${_id}" />
+            <div class="table-name-tag">
+                ${pinned ? `<button class="pin-badge" data-table-id="${_id}" title="Click to move up">↑</button>` : ''}
+                ${checklist ? buildDial(pct) : ''}
+                <input class="table-name" value="${escapeAttr(name.slice(0, 50))}" data-table-id="${_id}" maxlength="50" />
+            </div>
             <div class="footer-spacer"></div>
             <button class="btn-add-row" data-table-id="${_id}" tabindex="-1">+ row</button>
             <button class="btn-options" data-table-id="${_id}" tabindex="-1">⋯</button>
@@ -63,7 +67,16 @@ export class TableFooter {
 
         this._el = el;
         this._bind();
+        // Auto-size the name input to its content on first render
+        const nameInput = el.querySelector('.table-name');
+        if (nameInput) this._sizeInput(nameInput);
         return el;
+    }
+
+    /** Resize input width to exactly fit its current value */
+    _sizeInput(input) {
+        // +3 compensates for letter-spacing: 0.06em widening each glyph beyond 1ch
+        input.style.width = (Math.max(4, input.value.length) + 3) + 'ch';
     }
 
     /** Update the checklist dial without a full re-render */
@@ -91,9 +104,11 @@ export class TableFooter {
 
         // Name edit
         const nameInput = el.querySelector('.table-name');
+        nameInput?.addEventListener('input', () => this._sizeInput(nameInput));
         nameInput?.addEventListener('blur', () => {
             const newName = nameInput.value.trim() || 'untitled table';
             nameInput.value = newName;
+            this._sizeInput(nameInput);
             onNameChange?.(_id, newName);
         });
         nameInput?.addEventListener('keydown', (e) => {

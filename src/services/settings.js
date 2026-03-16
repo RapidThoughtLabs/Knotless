@@ -7,10 +7,11 @@ const DEFAULT_SETTINGS = {
         defaultColumns: 3,
         maxFileSizeMB: 50,
         lastOpenSheetId: null,
+        tableControlsPosition: 'header', // 'header' | 'footer'
     },
     theme: {
-        mode: 'dark',
-        accent: 'purple',
+        mode: 'light',
+        accent: 'yellow',
         gridMode: 'lines',
     },
     security: {
@@ -25,6 +26,26 @@ const DEFAULT_SETTINGS = {
     // directly in the userData directory.
     exportImport: {
         maxBlobSizeMB: 250,
+    },
+    // ── Handbook sheet lifecycle tracking ─────────────────────────────────────
+    // added:       true if the handbook sheet currently exists in the DB.
+    //              flips back to false when the user deletes the sheet.
+    // lastCreated: ISO timestamp of the last successful injection. Stays set
+    //              even after deletion so the app knows the user chose to delete
+    //              it (vs. a fresh install that has never seen it).
+    // sheetId:     _id of the handbook sheet in sheets.db. Used to detect
+    //              deletion and to target regeneration.
+    // version:     HANDBOOK_VERSION string that was last injected. When the
+    //              app ships a newer HANDBOOK_VERSION, the lifecycle logic can
+    //              detect the bump and regenerate if autoUpdate is on.
+    // autoUpdate:  if true, a version bump auto-replaces the handbook on launch.
+    //              if false, the user regenerates manually from settings.
+    handbook: {
+        added: false,
+        lastCreated: null,
+        sheetId: null,
+        version: null,
+        autoUpdate: true,
     },
 };
 
