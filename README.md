@@ -129,7 +129,7 @@ Knotless is dual-licensed.
 - **commercial use** — if you intend to use Knotless in a proprietary product or hosted service without open-sourcing your code, contact us for a commercial license.
 
 See `LICENSE` for the full AGPL-3.0 text.
-For commercial licensing inquiries: [rapidthoughtlabs@gmail.com](mailto:rapidthoughtlabs@gmail.com)
+For commercial licensing inquiries: [ruchit@rapidthoughtlabs.com](mailto:ruchit@rapidthoughtlabs.com)
 
 ---
 

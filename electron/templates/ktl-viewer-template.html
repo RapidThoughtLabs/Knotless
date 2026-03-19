@@ -362,7 +362,6 @@
        TABLE GRID (rows)
     ══════════════════════════════════════════════════ */
     .table-grid {
-      border-bottom: 1px solid var(--border);
       flex: 1;
     }
 
@@ -374,7 +373,31 @@
     .table-row:last-child { border-bottom: none; }
 
     /* ══════════════════════════════════════════════════
-       TABLE FOOTER
+       COLLAPSIBLE GRID WRAPPER
+    ══════════════════════════════════════════════════ */
+    .table-grid-wrapper {
+      display: grid;
+      grid-template-rows: 1fr;
+      opacity: 1;
+      overflow: hidden;
+      transition: grid-template-rows 0.28s ease, opacity 0.2s ease;
+    }
+
+    .table-card.collapsed .table-grid-wrapper {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+
+    .table-card.no-anim .table-grid-wrapper {
+      transition: none !important;
+    }
+
+    .table-card.collapsed { height: auto !important; }
+
+    .table-card.collapsed .table-grid { min-height: 0 !important; }
+
+    /* ══════════════════════════════════════════════════
+       TABLE FOOTER / HEADER CONTROLS BAR
     ══════════════════════════════════════════════════ */
     .table-footer {
       background: var(--footer-bg);
@@ -387,25 +410,101 @@
       gap: 8px;
     }
 
-    .pin-badge {
-      font-size: 11px;
-      color: var(--accent);
-      opacity: 0.85;
+    /* When controls bar is placed above the grid (header position) */
+    .table-footer--header {
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* When controls bar is placed below the grid (footer position, default) */
+    .table-card:not(.controls-top) .table-footer {
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Table name tag container ── */
+    .table-name-tag {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       flex-shrink: 0;
+      flex-grow: 0;
+      width: fit-content;
+      background: var(--hl-bar-bg, transparent);
+      border-radius: 4px;
+      padding: 0 10px 0 0;
+      margin-left: -2px;
+      transition: background 0.2s;
+    }
+
+    /* When a table is highlighted: flush the bar edge-to-edge inside the footer */
+    .has-hl .table-name-tag {
+      align-self: stretch;
+      align-items: center;
+      border-radius: 0;
+      margin-left: -4px;
+      padding-left: 4px;
+    }
+
+    .pin-badge {
+      background: transparent;
+      border: none;
+      padding: 0 2px;
       margin-left: 4px;
+      font-size: 10px;
+      color: var(--hl-bar-text, var(--accent));
+      opacity: 0.8;
+      flex-shrink: 0;
     }
 
     .table-name-label {
-      font-size: 11px;
-      color: var(--text-mid);
-      letter-spacing: 0.05em;
+      color: var(--hl-bar-text, var(--text-mid));
+      font-size: var(--font-size, 13px);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 2px 4px;
+      border-radius: 3px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      padding: 2px 4px;
     }
 
     .footer-spacer { flex: 1; }
+
+    /* Collapse toggle button */
+    .btn-collapse {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 3px 5px;
+      border-radius: 3px;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+    }
+
+    .btn-collapse:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    /* SVG chevron inside the button — rotates 180° when expanded */
+    .btn-collapse .chevron {
+      width: 11px;
+      height: 11px;
+      display: block;
+      transition: transform 0.25s ease;
+      /* Default: pointing right = collapsed indicator (card is expanded, click to collapse) */
+      transform: rotate(0deg);
+    }
+
+    /* When card is NOT collapsed the chevron points down */
+    .table-card:not(.collapsed) .btn-collapse .chevron {
+      transform: rotate(90deg);
+    }
 
     /* Checklist dial SVG */
     .checklist-dial {
@@ -522,13 +621,7 @@
     [data-mode="light"] .table-card.table-hl-cyan   { --hl-bar-bg: #108880; --hl-bar-text: rgba(255,255,255,0.92); }
     [data-mode="light"] .table-card.table-hl-orange { --hl-bar-bg: #c85010; --hl-bar-text: rgba(255,255,255,0.92); }
 
-    /* Name badge colored pill when table is highlighted */
-    .table-card.has-hl .table-name-label {
-      background: var(--hl-bar-bg, transparent);
-      color: var(--hl-bar-text, var(--text-mid));
-      border-radius: 4px;
-      padding: 3px 8px;
-    }
+    /* Highlighted name-tag — colors are driven by .table-name-tag background via --hl-bar-bg */
 
     /* ══════════════════════════════════════════════════
        IMAGE CELL
@@ -1150,7 +1243,8 @@
 
     // ── Main render ────────────────────────────────────────────────────────────
     (function render() {
-      const { sheet, tables, exported_at } = KTL_DATA;
+      const { sheet, tables, exported_at, settings } = KTL_DATA;
+      const controlsPosition = settings?.controlsPosition || 'footer';
 
       document.getElementById('sheet-title').textContent = sheet.name || 'untitled';
       document.title = (sheet.name || 'untitled') + ' — knotless';
@@ -1192,10 +1286,13 @@
       for (const table of tables) {
         const tableHlKey = table.highlight || null;
         const tableHlClass = tableHlKey
-          ? ' table-' + tableHlKey + ' has-hl'
+          ? ' table-hl-' + tableHlKey + ' has-hl'
           : '';
         const card = document.createElement('div');
-        card.className = 'table-card' + (table.pinned ? ' pinned' : '') + tableHlClass;
+        card.className = 'table-card'
+          + (table.pinned ? ' pinned' : '')
+          + tableHlClass
+          + (controlsPosition === 'header' ? ' controls-top' : '');
 
         // ── Table rows ─────────────────────────────────────────────────────────
         const tableGrid = document.createElement('div');
@@ -1237,36 +1334,72 @@
           tableGrid.appendChild(rowEl);
         });
 
-        card.appendChild(tableGrid);
+        // ── Wrap grid for collapse animation ─────────────────────────────────
+        const gridWrapper = document.createElement('div');
+        gridWrapper.className = 'table-grid-wrapper';
+        gridWrapper.appendChild(tableGrid);
 
-        // ── Table footer ───────────────────────────────────────────────────────
+        // ── Controls bar (footer/header) ─────────────────────────────────────
         const footer = document.createElement('div');
-        footer.className = 'table-footer';
+        footer.className = controlsPosition === 'header'
+          ? 'table-footer table-footer--header'
+          : 'table-footer';
+
+        // Name tag container (groups pin + dial + name with highlight bg)
+        const nameTag = document.createElement('div');
+        nameTag.className = 'table-name-tag';
 
         if (table.pinned) {
           const pin = document.createElement('span');
           pin.className = 'pin-badge';
           pin.textContent = '↑';
-          footer.appendChild(pin);
+          nameTag.appendChild(pin);
         }
-
-        const nameLabel = document.createElement('div');
-        nameLabel.className = 'table-name-label';
-        nameLabel.textContent = table.name || 'untitled';
-        footer.appendChild(nameLabel);
-
-        const spacer = document.createElement('div');
-        spacer.className = 'footer-spacer';
-        footer.appendChild(spacer);
 
         if (isChecklist && rows.length > 0) {
           const skip         = excludeFirstRow ? 1 : 0;
           const dialTotal    = rows.length - skip;
           const dialChecked  = checked.slice(skip).filter(Boolean).length;
-          if (dialTotal > 0) footer.appendChild(makeDialSvg(dialChecked, dialTotal));
+          if (dialTotal > 0) nameTag.appendChild(makeDialSvg(dialChecked, dialTotal));
         }
 
-        card.appendChild(footer);
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'table-name-label';
+        nameLabel.textContent = table.name || 'untitled';
+        nameTag.appendChild(nameLabel);
+        footer.appendChild(nameTag);
+
+        const spacer = document.createElement('div');
+        spacer.className = 'footer-spacer';
+        footer.appendChild(spacer);
+
+        // Collapse toggle button — SVG chevron, CSS handles rotation via .collapsed class
+        const collapseBtn = document.createElement('button');
+        collapseBtn.className = 'btn-collapse';
+        collapseBtn.title = 'collapse / expand';
+        collapseBtn.innerHTML =
+          '<svg class="chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor"' +
+          ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+          '<polyline points="4,2 9,6 4,10"/>' +
+          '</svg>';
+        collapseBtn.addEventListener('click', () => card.classList.toggle('collapsed'));
+        footer.appendChild(collapseBtn);
+
+        // ── Assemble card (header or footer position) ────────────────────────
+        if (controlsPosition === 'header') {
+          card.appendChild(footer);
+          card.appendChild(gridWrapper);
+        } else {
+          card.appendChild(gridWrapper);
+          card.appendChild(footer);
+        }
+
+        // Apply saved collapsed state (skip animation on initial load)
+        if (table.collapsed) {
+          card.classList.add('collapsed', 'no-anim');
+          requestAnimationFrame(() => card.classList.remove('no-anim'));
+        }
+
         grid.appendChild(card);
       }
     })();

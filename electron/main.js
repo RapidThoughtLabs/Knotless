@@ -512,14 +512,17 @@ ipcMain.handle('dialog:open', async (_, options) => {
 
 // Export sheet as plain JSON
 ipcMain.handle('export:json', async (_, sheetDoc, tables, savePath) => {
-  return await exportImportService.exportSheetAsJson(sheetDoc, tables, savePath);
+  const s = settingsService.get();
+  const viewerSettings = { controlsPosition: s?.general?.tableControlsPosition ?? 'footer' };
+  return await exportImportService.exportSheetAsJson(sheetDoc, tables, savePath, viewerSettings);
 });
 
 // Export sheet as ZIP bundle (JSON + blobs + HTML viewer)
 ipcMain.handle('export:zip', async (_, sheetDoc, tables, savePath) => {
   const s = settingsService.get();
   const blobCapMB = s?.exportImport?.maxBlobSizeMB ?? 250;
-  return await exportImportService.exportSheetAsZip(sheetDoc, tables, savePath, blobCapMB);
+  const viewerSettings = { controlsPosition: s?.general?.tableControlsPosition ?? 'footer' };
+  return await exportImportService.exportSheetAsZip(sheetDoc, tables, savePath, blobCapMB, viewerSettings);
 });
 
 // Import from .ktl.json or .ktl.zip — auto-detects from extension

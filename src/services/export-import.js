@@ -138,12 +138,15 @@ function rewriteCellsJson(tables) {
                 return cell;
             })
         ),
-        checklist: table.checklist ?? false,
-        checked:   table.checked   ?? [],
-        highlights:table.highlights ?? {},
-        pinned:    table.pinned    ?? false,
-        sortOrder: table.sortOrder ?? Date.now(),
-        cardHeight:table.cardHeight ?? null,
+        checklist:      table.checklist      ?? false,
+        checked:        table.checked        ?? [],
+        excludeFirstRow:table.excludeFirstRow ?? false,
+        highlights:     table.highlights     ?? {},
+        highlight:      table.highlight      ?? null,
+        pinned:         table.pinned         ?? false,
+        collapsed:      table.collapsed      ?? false,
+        sortOrder:      table.sortOrder      ?? Date.now(),
+        cardHeight:     table.cardHeight     ?? null,
     }));
 }
 
@@ -173,12 +176,15 @@ function rewriteCellsZip(tables, dedupeMap) {
                 return cell;
             })
         ),
-        checklist: table.checklist ?? false,
-        checked:   table.checked   ?? [],
-        highlights:table.highlights ?? {},
-        pinned:    table.pinned    ?? false,
-        sortOrder: table.sortOrder ?? Date.now(),
-        cardHeight:table.cardHeight ?? null,
+        checklist:      table.checklist      ?? false,
+        checked:        table.checked        ?? [],
+        excludeFirstRow:table.excludeFirstRow ?? false,
+        highlights:     table.highlights     ?? {},
+        highlight:      table.highlight      ?? null,
+        pinned:         table.pinned         ?? false,
+        collapsed:      table.collapsed      ?? false,
+        sortOrder:      table.sortOrder      ?? Date.now(),
+        cardHeight:     table.cardHeight     ?? null,
     }));
 }
 
@@ -243,10 +249,11 @@ class ExportImportService {
 
     // ── Export: plain JSON ────────────────────────────────────────────────────
 
-    async exportSheetAsJson(sheetDoc, tables, saveFilePath) {
+    async exportSheetAsJson(sheetDoc, tables, saveFilePath, viewerSettings = {}) {
         const ktlJson = {
             ktl_version: '1.0',
             exported_at: new Date().toISOString(),
+            settings: viewerSettings,
             sheet: {
                 name:      sheetDoc.name      ?? 'untitled',
                 createdAt: sheetDoc.createdAt ?? new Date().toISOString(),
@@ -260,7 +267,7 @@ class ExportImportService {
 
     // ── Export: ZIP bundle ────────────────────────────────────────────────────
 
-    async exportSheetAsZip(sheetDoc, tables, saveFilePath, blobCapMB = 250) {
+    async exportSheetAsZip(sheetDoc, tables, saveFilePath, blobCapMB = 250, viewerSettings = {}) {
         // 1 — Collect blob refs and build dedup map
         const refs      = collectBlobRefs(tables);
         const dedupeMap = buildDedupeMap(refs);
@@ -285,6 +292,7 @@ class ExportImportService {
             ktl_version: '1.0',
             exported_at: new Date().toISOString(),
             source_file: sheetSafe + '.ktl.json',
+            settings: viewerSettings,
             sheet: {
                 name:      sheetDoc.name      ?? 'untitled',
                 createdAt: sheetDoc.createdAt ?? new Date().toISOString(),
