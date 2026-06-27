@@ -25,6 +25,10 @@ jobs:
       - name: Build and publish
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # No Apple Developer ID cert: skip electron-builder's signing
+          # auto-discovery. The afterPack hook applies a clean ad-hoc signature
+          # so the .app is not flagged as "damaged" by Gatekeeper.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run electron:build:mac -- --publish always
 
   build-windows:

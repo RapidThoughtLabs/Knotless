@@ -2,7 +2,7 @@
 
 **rapid table-based notes** — by [Rapid Thought Labs](https://github.com/RapidThoughtLabs)
 
-![version](https://img.shields.io/badge/version-0.1.0-808080?style=flat-square)
+![version](https://img.shields.io/badge/version-0.1.1-808080?style=flat-square)
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-808080?style=flat-square)
 ![license](https://img.shields.io/badge/license-AGPL--3.0%20%2B%20Commercial-7c3aed?style=flat-square)
 ![built with](https://img.shields.io/badge/built%20with-Electron%20%2B%20Vite-808080?style=flat-square)
@@ -97,6 +97,34 @@ npm run electron:build:win
 ```
 
 Output goes to `dist/`.
+
+---
+
+## opening Knotless on macOS
+
+Knotless is **not yet signed with an Apple Developer ID or notarized** (that
+requires a paid Apple Developer account). Because the DMG is downloaded from the
+internet, macOS adds it to quarantine and Gatekeeper will block the first launch
+with a warning like *"Knotless can't be opened because Apple cannot check it for
+malicious software."*
+
+This is expected. To open it:
+
+1. Open the `.dmg` and drag **Knotless** into your **Applications** folder.
+2. Open **Terminal** and run:
+
+   ```bash
+   xattr -cr /Applications/Knotless.app
+   ```
+
+3. Launch Knotless normally from Applications.
+
+The `xattr -cr` command removes the download quarantine flag. You only need to do
+this once per install. The app is otherwise safe — the warning is purely because
+it isn't Apple-notarized yet.
+
+> Make sure you download the right build: **Apple Silicon (M1/M2/M3…)** → the
+> `-arm64.dmg`, **Intel Macs** → the plain `.dmg`.
 
 ---
 

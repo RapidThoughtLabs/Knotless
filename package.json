@@ -1,6 +1,6 @@
 {
     "name": "knotless",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Knotless — rapid table-based notes by Rapid Thought Labs",
     "main": "electron/main.js",
     "type": "module",
@@ -37,6 +37,7 @@
         "directories": {
             "output": "release"
         },
+        "afterPack": "./build/afterPack.cjs",
         "files": [
             "dist/**/*",
             "electron/**/*",
