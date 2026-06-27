@@ -14,7 +14,7 @@ import { CellContextMenu } from './components/context-menu.js';
 import { TableOptionsMenu } from './components/table-options-menu.js';
 import { SheetOptionsMenu } from './components/sheet-options-menu.js';
 import { SearchBar } from './components/search-bar.js';
-import { SettingsModal, applyAnimationLevel, applyFontSize } from './components/settings-modal.js';
+import { SettingsModal, applyAnimationLevel, applyFontSize, applyFontFamily } from './components/settings-modal.js';
 import { showAddTableModal, showAddSheetModal, showConfirm, showAlert, showImportConflictModal, showFileMissingModal, showMoveToSheetModal } from './components/modals.js';
 import { showExportModal } from './components/export-modal.js';
 import { showToast, setToastPosition } from './components/toast.js';
@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Font size
         const fontSize = savedSettings?.general?.fontSize ?? 13;
         applyFontSize(fontSize);
+        // Font family (typeface)
+        const fontFamily = savedSettings?.general?.fontFamily ?? 'jetbrains';
+        applyFontFamily(fontFamily);
         // Mac has its own native animation system — never touch it
         if (!window.electron?.isMac) {
             const animLevel = savedSettings?.general?.animations ?? 'full';

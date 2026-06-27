@@ -30,6 +30,42 @@ export function applyFontSize(size = 13) {
     if (document.body) document.body.style.fontSize = `${size}px`;
 }
 
+/**
+ * App-wide typeface options. Each id maps to a Google Font stack.
+ * The matching font files are preloaded in index.html — keep the two in sync.
+ * `sample` is shown in the picker so the user can preview the look.
+ */
+export const FONT_OPTIONS = [
+    // ── the keepers — clean, legible workhorses ─────────────────────────────────
+    { id: 'jetbrains', group: 'everyday', label: 'JetBrains Mono', stack: "'JetBrains Mono', monospace",      tag: 'mono',    sample: 'const x = 42;' },
+    { id: 'fira',      group: 'everyday', label: 'Fira Code',      stack: "'Fira Code', monospace",           tag: 'mono',    sample: 'a != b => c' },
+    { id: 'space',     group: 'everyday', label: 'Space Mono',     stack: "'Space Mono', monospace",          tag: 'retro',   sample: 'mission log 01' },
+    { id: 'inter',     group: 'everyday', label: 'Inter',          stack: "'Inter', sans-serif",              tag: 'clean',   sample: 'crisp & clear' },
+    // ── out of the blue — weird, pretty, soulful ────────────────────────────────
+    { id: 'grotesk',   group: 'out of the blue', label: 'Space Grotesk',  stack: "'Space Grotesk', sans-serif",      tag: 'grotesk', sample: 'a little odd' },
+    { id: 'fraunces',  group: 'out of the blue', label: 'Fraunces',       stack: "'Fraunces', serif",                tag: 'soft',    sample: 'soft & wonky' },
+    { id: 'instrument',group: 'out of the blue', label: 'Instrument Serif',stack: "'Instrument Serif', serif",        tag: 'editorial',sample: 'Headlines & ideas' },
+    { id: 'cormorant', group: 'out of the blue', label: 'Cormorant',      stack: "'Cormorant', serif",               tag: 'refined', sample: 'Elegant evenings' },
+    { id: 'syne',      group: 'out of the blue', label: 'Syne',           stack: "'Syne', sans-serif",               tag: 'artsy',   sample: 'gallery mode' },
+    { id: 'unbounded', group: 'out of the blue', label: 'Unbounded',      stack: "'Unbounded', system-ui, sans-serif",tag: 'bold',   sample: 'LOUD & ROUND' },
+    { id: 'josefin',   group: 'out of the blue', label: 'Josefin Sans',   stack: "'Josefin Sans', sans-serif",       tag: 'deco',    sample: 'vintage charm' },
+    { id: 'quicksand', group: 'out of the blue', label: 'Quicksand',      stack: "'Quicksand', sans-serif",          tag: 'rounded', sample: 'soft & friendly' },
+    { id: 'caveat',    group: 'out of the blue', label: 'Caveat',         stack: "'Caveat', cursive",                tag: 'handwritten',sample: 'dear diary…' },
+    { id: 'major',     group: 'out of the blue', label: 'Major Mono',     stack: "'Major Mono Display', monospace",  tag: 'quirky',  sample: 'lowercase love' },
+];
+
+/**
+ * Apply an app-wide typeface by id. Sets the --font-family CSS variable on
+ * <html> (consumed everywhere via var(--font-family)) and a data-font hook for
+ * any font-specific CSS tweaks. Falls back to the default if the id is unknown.
+ * @param {string} id - one of FONT_OPTIONS ids
+ */
+export function applyFontFamily(id = 'jetbrains') {
+    const opt = FONT_OPTIONS.find(f => f.id === id) || FONT_OPTIONS[0];
+    document.documentElement.style.setProperty('--font-family', opt.stack);
+    document.documentElement.dataset.font = opt.id;
+}
+
 export class SettingsModal {
     /**
      * @param {RTLThemeEngine} themeEngine - shared instance
@@ -246,6 +282,35 @@ export class SettingsModal {
                         </div>
                     </div>
 
+                    <!-- Font / typeface picker -->
+                    <div class="setting-row setting-row-stacked">
+                        <div>
+                            <div class="setting-label">typeface</div>
+                            <div class="setting-sub">font used across the whole app</div>
+                        </div>
+                        <div class="font-grid" id="font-grid">
+                            ${(() => {
+                                let html = '';
+                                let lastGroup = null;
+                                for (const f of FONT_OPTIONS) {
+                                    if (f.group !== lastGroup) {
+                                        html += `<div class="font-group-label">${f.group}</div>`;
+                                        lastGroup = f.group;
+                                    }
+                                    html += `
+                                        <button class="font-option" data-font-id="${f.id}" style="font-family:${f.stack}">
+                                            <span class="font-option-top">
+                                                <span class="font-option-name">${f.label}</span>
+                                                <span class="font-option-tag">${f.tag}</span>
+                                            </span>
+                                            <span class="font-option-sample">${f.sample}</span>
+                                        </button>`;
+                                }
+                                return html;
+                            })()}
+                        </div>
+                    </div>
+
                     <button class="btn-reset" id="theme-reset-btn">↺ reset to defaults</button>
                 </div>
 
@@ -362,6 +427,18 @@ export class SettingsModal {
             await this._settings.update('theme.gridMode', grid);
         });
 
+        // Typeface picker
+        el.querySelector('#font-grid')?.addEventListener('click', async (e) => {
+            const opt = e.target.closest('[data-font-id]');
+            if (!opt) return;
+            const id = opt.dataset.fontId;
+            el.querySelectorAll('#font-grid .font-option').forEach(b => b.classList.toggle('active', b === opt));
+            applyFontFamily(id);
+            await this._settings.update('general.fontFamily', id);
+            const label = FONT_OPTIONS.find(f => f.id === id)?.label ?? id;
+            showToast(`font → ${label}`, 'success');
+        });
+
         // Startup toggle
         el.querySelector('#toggle-startup')?.addEventListener('click', async (e) => {
             const toggle = e.currentTarget;
@@ -454,6 +531,9 @@ export class SettingsModal {
             await this._settings.update('theme.mode', 'dark');
             await this._settings.update('theme.accent', 'purple');
             await this._settings.update('theme.gridMode', 'lines');
+            // Reset typeface to the app default too
+            applyFontFamily('jetbrains');
+            await this._settings.update('general.fontFamily', 'jetbrains');
             this._syncFromState();
             showToast('theme reset to defaults', 'info');
         });
@@ -518,6 +598,13 @@ export class SettingsModal {
             const fontValEl = el.querySelector('#font-size-val');
             if (fontValEl) fontValEl.textContent = fontSize;
             applyFontSize(fontSize);
+
+            // Sync and apply font family (typeface picker)
+            const fontFamily = saved.general?.fontFamily ?? 'jetbrains';
+            el.querySelectorAll('#font-grid .font-option').forEach(b => {
+                b.classList.toggle('active', b.dataset.fontId === fontFamily);
+            });
+            applyFontFamily(fontFamily);
 
             // Sync and apply animation level (Windows/Linux only)
             if (!window.electron?.isMac) {

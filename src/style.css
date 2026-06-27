@@ -14,7 +14,7 @@
 }
 
 * {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 html {
@@ -106,7 +106,7 @@ body {
   transition: text-shadow 0.22s ease, filter 0.18s ease, background 0.18s ease, color 0.18s ease;
   letter-spacing: 0.03em;
   -webkit-app-region: no-drag;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   border-radius: 4px;
 }
 
@@ -174,7 +174,7 @@ body {
   padding: 8px 12px;
   font-size: 11px;
   letter-spacing: 0.06em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   border-radius: 4px;
   cursor: pointer;
   border: none;
@@ -200,7 +200,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.1s;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .filter-option:hover {
@@ -241,7 +241,7 @@ body {
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.05em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   transition: box-shadow 0.22s ease, filter 0.18s ease;
   position: relative;
   white-space: nowrap;
@@ -398,7 +398,7 @@ body {
   border: none;
   outline: none;
   color: var(--accent);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   font-size: 12px;
   font-weight: 600;
   caret-color: var(--accent);
@@ -413,7 +413,7 @@ body {
 .search-count {
   flex-shrink: 0;
   font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   color: var(--text);
   opacity: 0.55;
   white-space: nowrap;
@@ -450,7 +450,7 @@ body {
   white-space: nowrap;
   color: var(--text);
   opacity: 0.6;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   flex-shrink: 0;
 }
 
@@ -818,7 +818,7 @@ body {
 .cell.has-command {
   color: #7ec9a0;
   font-size: calc(var(--font-size, 13px) - 2px);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 /* Light mode — darken all content-type colors for cream background legibility */
@@ -983,7 +983,7 @@ body {
   max-width: 100%;
   letter-spacing: 0.02em;
   font-weight: 600;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .file-meta {
@@ -992,7 +992,7 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 
@@ -1173,7 +1173,7 @@ body {
      circular and clamp the input. JS _sizeInput controls the exact width. */
   white-space: nowrap;
   overflow: hidden;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .table-name:hover {
@@ -1271,7 +1271,7 @@ body {
   letter-spacing: 0.04em;
   opacity: 0;
   transition: opacity 0.15s, color 0.1s, background 0.1s;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .table-card:hover .btn-add-row {
@@ -1565,7 +1565,7 @@ body {
   padding: 7px 10px;
   color: var(--text);
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   outline: none;
   margin-bottom: 10px;
   letter-spacing: 0.02em;
@@ -1625,7 +1625,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.1s;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .move-sheet-option:hover {
@@ -1691,7 +1691,7 @@ body {
   color: hsla(0, 75%, 65%, 0.8);
   font-size: 11px;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   letter-spacing: 0.06em;
   transition: box-shadow 0.22s ease, filter 0.18s ease, color 0.15s, border-color 0.15s, background 0.15s;
 }
@@ -1716,7 +1716,7 @@ body {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   letter-spacing: 0.06em;
   transition: filter 0.15s;
 }
@@ -1928,7 +1928,7 @@ body {
   color: var(--text-mid);
   min-width: 52px;
   letter-spacing: 0.04em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .seg-btn {
@@ -1940,7 +1940,7 @@ body {
   letter-spacing: 0.06em;
   transition: all 0.15s;
   user-select: none;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .seg-btn.active {
@@ -1972,7 +1972,7 @@ body {
   letter-spacing: 0.06em;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
   white-space: nowrap;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   text-align: center;
 }
 
@@ -2022,6 +2022,102 @@ body {
   font-size: 11px;
   font-weight: 700;
   color: rgba(0, 0, 0, 0.6);
+}
+
+/* ── Typeface picker ──────────────────────────────────────────────────────── */
+/* Stacked row: label on top, full-width control beneath (used by the font grid) */
+.setting-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Group heading spanning the full grid width (e.g. "out of the blue") */
+.font-group-label {
+  grid-column: 1 / -1;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.font-group-label:first-child {
+  margin-top: 0;
+}
+
+.font-option {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+
+/* Every part of the card renders in its own typeface for an instant preview */
+.font-option * {
+  font-family: inherit;
+}
+
+.font-option:hover:not(.active) {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: translateY(-1px);
+}
+
+.font-option.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.font-option-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.font-option-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.font-option-tag {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.font-option.active .font-option-tag {
+  background: var(--accent);
+  color: var(--accent-txt);
+}
+
+.font-option-sample {
+  font-size: 13px;
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Toggle */
@@ -2160,7 +2256,7 @@ body {
   color: var(--text-dim);
   font-size: 11px;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   letter-spacing: 0.06em;
   transition: all 0.15s;
 }
@@ -2386,7 +2482,7 @@ body {
   animation: toastIn 0.2s ease forwards;
   white-space: nowrap;
   backdrop-filter: blur(8px);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
 }
 
 .toast.out {

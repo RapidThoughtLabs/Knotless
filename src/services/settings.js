@@ -8,6 +8,8 @@ const DEFAULT_SETTINGS = {
         maxFileSizeMB: 50,
         lastOpenSheetId: null,
         tableControlsPosition: 'header', // 'header' | 'footer'
+        fontFamily: 'jetbrains', // id from FONT_OPTIONS in settings-modal.js
+        fontSize: 13,            // px, 11–17 (font size stepper)
     },
     theme: {
         mode: 'light',

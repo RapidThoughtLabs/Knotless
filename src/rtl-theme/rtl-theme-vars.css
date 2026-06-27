@@ -10,6 +10,11 @@
    DARK MODE (default)  accent = purple
 ══════════════════════════════════════════════════ */
 :root {
+    /* App-wide typeface — overridden at runtime by the font picker in settings.
+       JS sets this inline on <html> via applyFontFamily(); this is the fallback
+       used before scripts run and the default (JetBrains Mono). */
+    --font-family: 'JetBrains Mono', monospace;
+
     --accent-h: 270;
     --accent-s: 70%;
     --accent-l: 68%;

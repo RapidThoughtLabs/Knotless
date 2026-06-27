@@ -1,6 +1,6 @@
 {
     "name": "knotless",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "Knotless — rapid table-based notes by Rapid Thought Labs",
     "main": "electron/main.js",
     "type": "module",
@@ -79,11 +79,15 @@
             "target": [
                 {
                     "target": "AppImage",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 },
                 {
                     "target": "deb",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 }
             ],
             "icon": "build/icon.png",

@@ -5,6 +5,20 @@ All notable changes to Knotless are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-06-27
+
+### Added
+- **App-wide font picker.** Settings → theme has a new "typeface" picker with 14
+  fonts, split into everyday workhorses (JetBrains Mono, Fira Code, Space Mono,
+  Inter) and an "out of the blue" set of distinctive display, serif, and
+  handwritten faces (Space Grotesk, Fraunces, Instrument Serif, Cormorant, Syne,
+  Unbounded, Josefin Sans, Quicksand, Caveat, Major Mono). Each option previews
+  in its own typeface and applies instantly across the whole app.
+
+### Changed
+- All UI text now flows through a single `--font-family` CSS variable instead of
+  hard-coded JetBrains Mono, so the selected typeface cascades everywhere.
+
 ## [0.1.1] - 2026-06-27
 
 ### Fixed
@@ -34,5 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   import & export, theming, and native frameless windows on macOS and Windows.
 - GitHub Actions release workflow for Windows, macOS, and Linux.
 
+[0.1.2]: https://github.com/RapidThoughtLabs/Knotless/releases/tag/v0.1.2
 [0.1.1]: https://github.com/RapidThoughtLabs/Knotless/releases/tag/v0.1.1
 [0.1.0]: https://github.com/RapidThoughtLabs/Knotless/releases/tag/v0.1.0
